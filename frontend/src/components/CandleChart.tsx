@@ -13,33 +13,45 @@ import {
   type UTCTimestamp,
 } from "lightweight-charts";
 import type { Candle } from "@/lib/types";
+import { emaColorFor, type ChartColors } from "@/lib/colors";
 
 interface CandleChartProps {
   candles: Candle[];
   emaPeriods: number[];
   showVwap: boolean;
   showPriorDay: boolean;
+  colors: ChartColors;
 }
 
-const EMA_COLORS = ["#2962FF", "#FF6D00", "#9C27B0", "#00BFA5"];
+interface ExtraSeriesEntry {
+  series: ISeriesApi<"Line">;
+  kind: "ema" | "vwap";
+  period?: number;
+  index?: number;
+}
 
 function toUnixTime(datetime: string): UTCTimestamp {
   return Math.floor(new Date(datetime.replace(" ", "T")).getTime() / 1000) as UTCTimestamp;
 }
 
-export default function CandleChart({ candles, emaPeriods, showVwap, showPriorDay }: CandleChartProps) {
+export default function CandleChart({ candles, emaPeriods, showVwap, showPriorDay, colors }: CandleChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
-  const extraSeriesRef = useRef<ISeriesApi<"Line">[]>([]);
+  const extraSeriesRef = useRef<ExtraSeriesEntry[]>([]);
   const priceLinesRef = useRef<IPriceLine[]>([]);
+  const colorsRef = useRef(colors);
+
+  useEffect(() => {
+    colorsRef.current = colors;
+  }, [colors]);
 
   useEffect(() => {
     if (!containerRef.current) return;
 
     const chart = createChart(containerRef.current, {
       layout: {
-        background: { type: ColorType.Solid, color: "transparent" },
+        background: { type: ColorType.Solid, color: colorsRef.current.background },
         textColor: "#d1d4dc",
       },
       grid: {
@@ -53,11 +65,11 @@ export default function CandleChart({ candles, emaPeriods, showVwap, showPriorDa
 
     chartRef.current = chart;
     candleSeriesRef.current = chart.addSeries(CandlestickSeries, {
-      upColor: "#26a69a",
-      downColor: "#ef5350",
+      upColor: colorsRef.current.candleUp,
+      downColor: colorsRef.current.candleDown,
       borderVisible: false,
-      wickUpColor: "#26a69a",
-      wickDownColor: "#ef5350",
+      wickUpColor: colorsRef.current.candleUp,
+      wickDownColor: colorsRef.current.candleDown,
     });
 
     const handleResize = () => {
@@ -92,7 +104,7 @@ export default function CandleChart({ candles, emaPeriods, showVwap, showPriorDa
       }))
     );
 
-    extraSeriesRef.current.forEach((series) => chart.removeSeries(series));
+    extraSeriesRef.current.forEach(({ series }) => chart.removeSeries(series));
     extraSeriesRef.current = [];
     priceLinesRef.current.forEach((line) => candleSeries.removePriceLine(line));
     priceLinesRef.current = [];
@@ -105,12 +117,12 @@ export default function CandleChart({ candles, emaPeriods, showVwap, showPriorDa
       if (points.length === 0) return;
 
       const series = chart.addSeries(LineSeries, {
-        color: EMA_COLORS[index % EMA_COLORS.length],
+        color: emaColorFor(colorsRef.current, period, index),
         lineWidth: 2,
         title: `EMA ${period}`,
       });
       series.setData(points);
-      extraSeriesRef.current.push(series);
+      extraSeriesRef.current.push({ series, kind: "ema", period, index });
     });
 
     if (showVwap) {
@@ -119,12 +131,12 @@ export default function CandleChart({ candles, emaPeriods, showVwap, showPriorDa
         .map((c) => ({ time: toUnixTime(c.datetime), value: c.vwap as number }));
       if (points.length > 0) {
         const series = chart.addSeries(LineSeries, {
-          color: "#FFD54F",
+          color: colorsRef.current.vwap,
           lineWidth: 2,
           title: "VWAP",
         });
         series.setData(points);
-        extraSeriesRef.current.push(series);
+        extraSeriesRef.current.push({ series, kind: "vwap" });
       }
     }
 
@@ -157,6 +169,30 @@ export default function CandleChart({ candles, emaPeriods, showVwap, showPriorDa
 
     chart.timeScale().fitContent();
   }, [candles, emaPeriods, showVwap, showPriorDay]);
+
+  useEffect(() => {
+    const chart = chartRef.current;
+    const candleSeries = candleSeriesRef.current;
+    if (!chart || !candleSeries) return;
+
+    chart.applyOptions({
+      layout: { background: { type: ColorType.Solid, color: colors.background } },
+    });
+    candleSeries.applyOptions({
+      upColor: colors.candleUp,
+      downColor: colors.candleDown,
+      wickUpColor: colors.candleUp,
+      wickDownColor: colors.candleDown,
+    });
+
+    extraSeriesRef.current.forEach(({ series, kind, period, index }) => {
+      if (kind === "vwap") {
+        series.applyOptions({ color: colors.vwap });
+      } else if (kind === "ema" && period !== undefined && index !== undefined) {
+        series.applyOptions({ color: emaColorFor(colors, period, index) });
+      }
+    });
+  }, [colors]);
 
   return <div ref={containerRef} style={{ width: "100%", height: 600 }} />;
 }

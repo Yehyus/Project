@@ -47,3 +47,44 @@
   width: 16px;
   height: 16px;
 }
+
+.divider {
+  border: none;
+  border-top: 1px solid #2b2b43;
+  width: 100%;
+  margin: 0;
+}
+
+.colorField {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: #d1d4dc;
+  cursor: pointer;
+}
+
+.colorField input[type="color"] {
+  width: 40px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid #2b2b43;
+  border-radius: 4px;
+  background: #1e222d;
+  cursor: pointer;
+}
+
+.resetButton {
+  align-self: flex-start;
+  background: #1e222d;
+  border: 1px solid #2b2b43;
+  border-radius: 4px;
+  color: #d1d4dc;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.resetButton:hover {
+  background: #2b2b43;
+}

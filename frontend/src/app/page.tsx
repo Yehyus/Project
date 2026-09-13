@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import CandleChart from "@/components/CandleChart";
 import SettingsPanel from "@/components/SettingsPanel";
 import { fetchCandles, type Timeframe } from "@/lib/api";
+import { DEFAULT_COLORS, loadChartColors, saveChartColors, clearChartColors, type ChartColors } from "@/lib/colors";
 import type { Candle } from "@/lib/types";
 import styles from "./page.module.css";
 
@@ -13,6 +14,7 @@ export default function Home() {
   const [emaSlow, setEmaSlow] = useState(200);
   const [showVwap, setShowVwap] = useState(true);
   const [showPriorDay, setShowPriorDay] = useState(true);
+  const [colors, setColors] = useState<ChartColors>(DEFAULT_COLORS);
 
   const [candles, setCandles] = useState<Candle[]>([]);
   const [loading, setLoading] = useState(false);
@@ -22,6 +24,13 @@ export default function Home() {
     () => [emaFast, emaSlow].filter((p) => Number.isFinite(p) && p > 0),
     [emaFast, emaSlow]
   );
+
+  useEffect(() => {
+    // localStorage is only available client-side, so defaults are rendered
+    // first and swapped for the saved colors once mounted.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setColors(loadChartColors());
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -47,6 +56,27 @@ export default function Home() {
     };
   }, [timeframe, emaPeriods, showVwap, showPriorDay]);
 
+  const updateColors = (patch: Partial<ChartColors>) => {
+    setColors((prev) => {
+      const next = { ...prev, ...patch };
+      saveChartColors(next);
+      return next;
+    });
+  };
+
+  const updateEmaColor = (period: number, color: string) => {
+    setColors((prev) => {
+      const next = { ...prev, emaColors: { ...prev.emaColors, [period]: color } };
+      saveChartColors(next);
+      return next;
+    });
+  };
+
+  const resetColors = () => {
+    clearChartColors();
+    setColors(DEFAULT_COLORS);
+  };
+
   return (
     <div className={styles.page}>
       <main className={styles.main}>
@@ -58,6 +88,7 @@ export default function Home() {
           emaPeriods={emaPeriods}
           showVwap={showVwap}
           showPriorDay={showPriorDay}
+          colors={colors}
         />
       </main>
       <SettingsPanel
@@ -66,11 +97,16 @@ export default function Home() {
         emaSlow={emaSlow}
         showVwap={showVwap}
         showPriorDay={showPriorDay}
+        emaPeriods={emaPeriods}
+        colors={colors}
         onTimeframeChange={setTimeframe}
         onEmaFastChange={setEmaFast}
         onEmaSlowChange={setEmaSlow}
         onShowVwapChange={setShowVwap}
         onShowPriorDayChange={setShowPriorDay}
+        onColorChange={updateColors}
+        onEmaColorChange={updateEmaColor}
+        onResetColors={resetColors}
       />
     </div>
   );
