@@ -1,0 +1,35 @@
+.page {
+  display: flex;
+  flex: 1;
+  width: 100%;
+  min-height: 100vh;
+  background-color: #0d1017;
+}
+
+.main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.5rem;
+  min-width: 0;
+}
+
+.title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #d1d4dc;
+  margin: 0;
+}
+
+.status {
+  color: #9598a1;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.error {
+  color: #ef5350;
+  font-size: 0.9rem;
+  margin: 0;
+}

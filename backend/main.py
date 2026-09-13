@@ -7,11 +7,19 @@ from typing import List, Optional
 
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 
 import data
 import indicators
 
 app = FastAPI(title="NQ=F Candles API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_methods=["GET"],
+    allow_headers=["*"],
+)
 
 
 def _parse_ema_periods(ema: Optional[str]) -> List[int]:
