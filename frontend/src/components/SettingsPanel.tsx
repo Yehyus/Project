@@ -1,12 +1,21 @@
 "use client";
 
+import type { Timeframe } from "@/lib/api";
 import styles from "./SettingsPanel.module.css";
 
+const TIMEFRAMES: { value: Timeframe; label: string }[] = [
+  { value: "1d", label: "1 day" },
+  { value: "5m", label: "5 minute" },
+  { value: "1m", label: "1 minute" },
+];
+
 interface SettingsPanelProps {
+  timeframe: Timeframe;
   emaFast: number;
   emaSlow: number;
   showVwap: boolean;
   showPriorDay: boolean;
+  onTimeframeChange: (value: Timeframe) => void;
   onEmaFastChange: (value: number) => void;
   onEmaSlowChange: (value: number) => void;
   onShowVwapChange: (value: boolean) => void;
@@ -14,10 +23,12 @@ interface SettingsPanelProps {
 }
 
 export default function SettingsPanel({
+  timeframe,
   emaFast,
   emaSlow,
   showVwap,
   showPriorDay,
+  onTimeframeChange,
   onEmaFastChange,
   onEmaSlowChange,
   onShowVwapChange,
@@ -26,6 +37,20 @@ export default function SettingsPanel({
   return (
     <aside className={styles.panel}>
       <h2 className={styles.heading}>Settings</h2>
+
+      <label className={styles.field}>
+        <span>Timeframe</span>
+        <select
+          value={timeframe}
+          onChange={(e) => onTimeframeChange(e.target.value as Timeframe)}
+        >
+          {TIMEFRAMES.map((tf) => (
+            <option key={tf.value} value={tf.value}>
+              {tf.label}
+            </option>
+          ))}
+        </select>
+      </label>
 
       <label className={styles.field}>
         <span>Fast EMA period</span>

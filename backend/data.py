@@ -40,7 +40,14 @@ def get_ohlcv(
         raise ValueError(f"Unsupported timeframe: {timeframe!r}, expected one of {VALID_TIMEFRAMES}")
 
     ticker = yf.Ticker(TICKER)
-    raw = ticker.history(start=start, end=end, interval=timeframe, auto_adjust=False)
+
+    lookback_days = INTRADAY_LOOKBACK_DAYS.get(timeframe)
+    if start is None and end is None and lookback_days is not None:
+        # yfinance's own default lookback (~1 month) exceeds what Yahoo allows
+        # for intraday granularity, so it would otherwise come back empty.
+        raw = ticker.history(period=f"{lookback_days}d", interval=timeframe, auto_adjust=False)
+    else:
+        raw = ticker.history(start=start, end=end, interval=timeframe, auto_adjust=False)
 
     return _clean(raw)
 

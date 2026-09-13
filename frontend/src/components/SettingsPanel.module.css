@@ -24,7 +24,8 @@
   color: #d1d4dc;
 }
 
-.field input {
+.field input,
+.field select {
   background: #1e222d;
   border: 1px solid #2b2b43;
   border-radius: 4px;

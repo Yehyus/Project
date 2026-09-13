@@ -3,11 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 import CandleChart from "@/components/CandleChart";
 import SettingsPanel from "@/components/SettingsPanel";
-import { fetchCandles } from "@/lib/api";
+import { fetchCandles, type Timeframe } from "@/lib/api";
 import type { Candle } from "@/lib/types";
 import styles from "./page.module.css";
 
 export default function Home() {
+  const [timeframe, setTimeframe] = useState<Timeframe>("1d");
   const [emaFast, setEmaFast] = useState(20);
   const [emaSlow, setEmaSlow] = useState(200);
   const [showVwap, setShowVwap] = useState(true);
@@ -30,7 +31,7 @@ export default function Home() {
     setLoading(true);
     setError(null);
 
-    fetchCandles({ timeframe: "1d", emaPeriods, vwap: showVwap, priorDayLevels: showPriorDay })
+    fetchCandles({ timeframe, emaPeriods, vwap: showVwap, priorDayLevels: showPriorDay })
       .then((data) => {
         if (!cancelled) setCandles(data.candles);
       })
@@ -44,7 +45,7 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, [emaPeriods, showVwap, showPriorDay]);
+  }, [timeframe, emaPeriods, showVwap, showPriorDay]);
 
   return (
     <div className={styles.page}>
@@ -60,10 +61,12 @@ export default function Home() {
         />
       </main>
       <SettingsPanel
+        timeframe={timeframe}
         emaFast={emaFast}
         emaSlow={emaSlow}
         showVwap={showVwap}
         showPriorDay={showPriorDay}
+        onTimeframeChange={setTimeframe}
         onEmaFastChange={setEmaFast}
         onEmaSlowChange={setEmaSlow}
         onShowVwapChange={setShowVwap}
