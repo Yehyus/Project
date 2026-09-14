@@ -59,7 +59,7 @@ export default function CandleChart({ candles, emaPeriods, showVwap, showPriorDa
         horzLines: { color: "#2B2B43" },
       },
       width: containerRef.current.clientWidth,
-      height: 600,
+      height: containerRef.current.clientHeight,
       timeScale: { timeVisible: true, secondsVisible: false },
     });
 
@@ -72,15 +72,21 @@ export default function CandleChart({ candles, emaPeriods, showVwap, showPriorDa
       wickDownColor: colorsRef.current.candleDown,
     });
 
-    const handleResize = () => {
-      if (containerRef.current) {
-        chart.applyOptions({ width: containerRef.current.clientWidth });
+    // The container is resized by its parent (e.g. a draggable/resizable grid
+    // panel), not just the window, so a ResizeObserver is required to keep
+    // the chart's internal canvas size in sync with its box on every resize.
+    const resizeObserver = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      const { width, height } = entry.contentRect;
+      if (width > 0 && height > 0) {
+        chart.applyOptions({ width, height });
       }
-    };
-    window.addEventListener("resize", handleResize);
+    });
+    resizeObserver.observe(containerRef.current);
 
     return () => {
-      window.removeEventListener("resize", handleResize);
+      resizeObserver.disconnect();
       chart.remove();
       chartRef.current = null;
       candleSeriesRef.current = null;
@@ -194,5 +200,5 @@ export default function CandleChart({ candles, emaPeriods, showVwap, showPriorDa
     });
   }, [colors]);
 
-  return <div ref={containerRef} style={{ width: "100%", height: 600 }} />;
+  return <div ref={containerRef} style={{ width: "100%", height: "100%" }} />;
 }

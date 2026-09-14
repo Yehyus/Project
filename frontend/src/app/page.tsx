@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import CandleChart from "@/components/CandleChart";
+import DashboardGrid from "@/components/DashboardGrid";
 import SettingsPanel from "@/components/SettingsPanel";
 import { fetchCandles, type Timeframe } from "@/lib/api";
 import { DEFAULT_COLORS, loadChartColors, saveChartColors, clearChartColors, type ChartColors } from "@/lib/colors";
@@ -83,7 +83,7 @@ export default function Home() {
         <h1 className={styles.title}>NQ=F</h1>
         {error && <p className={styles.error}>Failed to load candles: {error}</p>}
         {loading && <p className={styles.status}>Loading...</p>}
-        <CandleChart
+        <DashboardGrid
           candles={candles}
           emaPeriods={emaPeriods}
           showVwap={showVwap}

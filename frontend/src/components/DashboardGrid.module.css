@@ -1,0 +1,72 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.toolbar {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.resetButton {
+  background: #1e222d;
+  border: 1px solid #2b2b43;
+  border-radius: 4px;
+  color: #d1d4dc;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.resetButton:hover {
+  background: #2b2b43;
+}
+
+.gridContainer {
+  width: 100%;
+}
+
+.panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #131722;
+  border: 1px solid #2b2b43;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.panelHeader {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #d1d4dc;
+  background: #1a1e2a;
+  border-bottom: 1px solid #2b2b43;
+  cursor: move;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.panelBody {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #5b5f6b;
+  font-size: 0.9rem;
+}
+
+:global(.react-resizable-handle)::after {
+  border-right-color: rgba(209, 212, 220, 0.6) !important;
+  border-bottom-color: rgba(209, 212, 220, 0.6) !important;
+}
