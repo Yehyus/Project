@@ -3,16 +3,16 @@
 import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import { GridLayout, useContainerWidth, type Layout, type LayoutItem } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
-import CandleChart from "@/components/CandleChart";
+import ChartPanel from "@/components/ChartPanel";
 import PlaceholderPanel from "@/components/PlaceholderPanel";
+import type { Timeframe } from "@/lib/api";
+import type { ChartColors } from "@/lib/colors";
 import { DEFAULT_LAYOUT, loadLayout, saveLayout, clearLayout } from "@/lib/layout";
 import { DEFAULT_PANELS, loadPanels, savePanels, clearPanels, type PanelInstance, type PanelType } from "@/lib/panels";
-import type { ChartColors } from "@/lib/colors";
-import type { Candle } from "@/lib/types";
+import { SYMBOLS } from "@/lib/symbols";
 import styles from "./DashboardGrid.module.css";
 
 interface DashboardGridProps {
-  candles: Candle[];
   emaPeriods: number[];
   showVwap: boolean;
   showPriorDay: boolean;
@@ -29,6 +29,12 @@ const PANEL_TITLES: Record<PanelType, string> = {
   placeholder: "Empty panel",
 };
 
+const TIMEFRAMES: { value: Timeframe; label: string }[] = [
+  { value: "1m", label: "1m" },
+  { value: "5m", label: "5m" },
+  { value: "1d", label: "D" },
+];
+
 let panelIdCounter = 0;
 
 function createPanelId(type: PanelType): string {
@@ -41,7 +47,7 @@ function bottomOf(layout: Layout): number {
 }
 
 const DashboardGrid = forwardRef<DashboardGridHandle, DashboardGridProps>(function DashboardGrid(
-  { candles, emaPeriods, showVwap, showPriorDay, colors },
+  { emaPeriods, showVwap, showPriorDay, colors },
   ref
 ) {
   const { width, containerRef, mounted } = useContainerWidth();
@@ -60,8 +66,8 @@ const DashboardGrid = forwardRef<DashboardGridHandle, DashboardGridProps>(functi
   // mount and whenever the `layout` prop is resynced), not just on user
   // interaction, so it's only used to keep visual state in sync. Persisting
   // to localStorage happens exclusively on drag/resize completion (and on
-  // explicit add/remove actions below), so a saved layout can never be
-  // clobbered by the grid's own mount-time bookkeeping.
+  // explicit add/remove/update actions below), so a saved layout can never
+  // be clobbered by the grid's own mount-time bookkeeping.
   const handleLayoutChange = (newLayout: Layout) => {
     setLayout(newLayout);
   };
@@ -84,6 +90,14 @@ const DashboardGrid = forwardRef<DashboardGridHandle, DashboardGridProps>(functi
     });
   };
 
+  const updatePanel = (id: string, patch: Partial<PanelInstance>) => {
+    setPanels((prev) => {
+      const next = prev.map((p) => (p.id === id ? { ...p, ...patch } : p));
+      savePanels(next);
+      return next;
+    });
+  };
+
   useImperativeHandle(ref, () => ({
     resetLayout: () => {
       clearLayout();
@@ -93,7 +107,12 @@ const DashboardGrid = forwardRef<DashboardGridHandle, DashboardGridProps>(functi
     },
     addPanel: (type: PanelType) => {
       const id = createPanelId(type);
-      const newPanel: PanelInstance = { id, type, title: PANEL_TITLES[type] };
+      const newPanel: PanelInstance = {
+        id,
+        type,
+        title: PANEL_TITLES[type],
+        ...(type === "chart" ? { symbol: SYMBOLS[0].value, timeframe: "1d" as Timeframe } : {}),
+      };
 
       setPanels((prev) => {
         const next = [...prev, newPanel];
@@ -125,6 +144,42 @@ const DashboardGrid = forwardRef<DashboardGridHandle, DashboardGridProps>(functi
             <div key={panel.id} className={styles.panel}>
               <div className={styles.panelHeader}>
                 <span>{panel.title}</span>
+
+                {panel.type === "chart" && (
+                  <>
+                    <select
+                      className={styles.symbolSelect}
+                      value={panel.symbol ?? SYMBOLS[0].value}
+                      onChange={(e) => updatePanel(panel.id, { symbol: e.target.value })}
+                      onMouseDown={(e) => e.stopPropagation()}
+                    >
+                      {SYMBOLS.map((s) => (
+                        <option key={s.value} value={s.value}>
+                          {s.value}
+                        </option>
+                      ))}
+                    </select>
+
+                    <div className={styles.timeframes}>
+                      {TIMEFRAMES.map((tf) => (
+                        <button
+                          key={tf.value}
+                          type="button"
+                          className={`${styles.timeframeButton} ${
+                            (panel.timeframe ?? "1d") === tf.value ? styles.timeframeButtonActive : ""
+                          }`}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          onClick={() => updatePanel(panel.id, { timeframe: tf.value })}
+                        >
+                          {tf.label}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                <div className={styles.headerSpacer} />
+
                 <button
                   type="button"
                   className={styles.closeButton}
@@ -137,8 +192,9 @@ const DashboardGrid = forwardRef<DashboardGridHandle, DashboardGridProps>(functi
               </div>
               <div className={styles.panelBody}>
                 {panel.type === "chart" ? (
-                  <CandleChart
-                    candles={candles}
+                  <ChartPanel
+                    symbol={panel.symbol ?? SYMBOLS[0].value}
+                    timeframe={panel.timeframe ?? "1d"}
                     emaPeriods={emaPeriods}
                     showVwap={showVwap}
                     showPriorDay={showPriorDay}

@@ -15,15 +15,3 @@
   padding: 1.5rem;
   min-width: 0;
 }
-
-.status {
-  color: #9598a1;
-  font-size: 0.9rem;
-  margin: 0;
-}
-
-.error {
-  color: #ef5350;
-  font-size: 0.9rem;
-  margin: 0;
-}

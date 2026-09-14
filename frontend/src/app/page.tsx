@@ -3,26 +3,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import DashboardGrid, { type DashboardGridHandle } from "@/components/DashboardGrid";
 import Toolbar from "@/components/Toolbar";
-import { fetchCandles, type Timeframe } from "@/lib/api";
 import { DEFAULT_COLORS, loadChartColors, saveChartColors, clearChartColors, type ChartColors } from "@/lib/colors";
-import { DEFAULT_SYMBOL } from "@/lib/symbols";
-import type { Candle } from "@/lib/types";
 import styles from "./page.module.css";
 
 export default function Home() {
-  const [symbol, setSymbol] = useState(DEFAULT_SYMBOL);
-  const [timeframe, setTimeframe] = useState<Timeframe>("1d");
   const [emaFast, setEmaFast] = useState(20);
   const [emaSlow, setEmaSlow] = useState(200);
-  const [showEmaFast, setShowEmaFast] = useState(true);
-  const [showEmaSlow, setShowEmaSlow] = useState(true);
-  const [showVwap, setShowVwap] = useState(true);
+  const [showEmaFast, setShowEmaFast] = useState(false);
+  const [showEmaSlow, setShowEmaSlow] = useState(false);
+  const [showVwap, setShowVwap] = useState(false);
   const [showPriorDay, setShowPriorDay] = useState(true);
   const [colors, setColors] = useState<ChartColors>(DEFAULT_COLORS);
-
-  const [candles, setCandles] = useState<Candle[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const gridRef = useRef<DashboardGridHandle>(null);
 
@@ -39,30 +30,6 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setColors(loadChartColors());
   }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    // Standard fetch-in-effect pattern (react.dev/reference/react/useEffect#fetching-data-with-effects):
-    // synchronous loading/error resets before kicking off the request.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLoading(true);
-    setError(null);
-
-    fetchCandles({ symbol, timeframe, emaPeriods, vwap: showVwap, priorDayLevels: showPriorDay })
-      .then((data) => {
-        if (!cancelled) setCandles(data.candles);
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [symbol, timeframe, emaPeriods, showVwap, showPriorDay]);
 
   const updateColors = (patch: Partial<ChartColors>) => {
     setColors((prev) => {
@@ -88,10 +55,6 @@ export default function Home() {
   return (
     <div className={styles.page}>
       <Toolbar
-        symbol={symbol}
-        onSymbolChange={setSymbol}
-        timeframe={timeframe}
-        onTimeframeChange={setTimeframe}
         onAddPanel={(type) => gridRef.current?.addPanel(type)}
         colors={colors}
         onColorChange={updateColors}
@@ -113,11 +76,8 @@ export default function Home() {
         onShowEmaSlowChange={setShowEmaSlow}
       />
       <main className={styles.main}>
-        {error && <p className={styles.error}>Failed to load candles: {error}</p>}
-        {loading && <p className={styles.status}>Loading...</p>}
         <DashboardGrid
           ref={gridRef}
-          candles={candles}
           emaPeriods={emaPeriods}
           showVwap={showVwap}
           showPriorDay={showPriorDay}

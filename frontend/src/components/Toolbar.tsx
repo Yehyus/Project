@@ -1,25 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { Timeframe } from "@/lib/api";
 import { emaColorFor, type ChartColors } from "@/lib/colors";
 import type { PanelType } from "@/lib/panels";
-import { SYMBOLS } from "@/lib/symbols";
 import styles from "./Toolbar.module.css";
 
-const TIMEFRAMES: { value: Timeframe; label: string }[] = [
-  { value: "1m", label: "1m" },
-  { value: "5m", label: "5m" },
-  { value: "1d", label: "D" },
-];
-
 interface ToolbarProps {
-  symbol: string;
-  onSymbolChange: (value: string) => void;
-
-  timeframe: Timeframe;
-  onTimeframeChange: (value: Timeframe) => void;
-
   onAddPanel: (type: PanelType) => void;
 
   colors: ChartColors;
@@ -82,10 +68,6 @@ function ToolsIcon() {
 }
 
 export default function Toolbar({
-  symbol,
-  onSymbolChange,
-  timeframe,
-  onTimeframeChange,
   onAddPanel,
   colors,
   onColorChange,
@@ -126,32 +108,6 @@ export default function Toolbar({
 
   return (
     <div ref={rootRef} className={styles.toolbar}>
-      <select
-        className={styles.symbolSelect}
-        value={symbol}
-        onChange={(e) => onSymbolChange(e.target.value)}
-        aria-label="Symbol"
-      >
-        {SYMBOLS.map((s) => (
-          <option key={s.value} value={s.value}>
-            {s.label}
-          </option>
-        ))}
-      </select>
-
-      <div className={styles.timeframes}>
-        {TIMEFRAMES.map((tf) => (
-          <button
-            key={tf.value}
-            type="button"
-            className={`${styles.timeframeButton} ${timeframe === tf.value ? styles.timeframeButtonActive : ""}`}
-            onClick={() => onTimeframeChange(tf.value)}
-          >
-            {tf.label}
-          </button>
-        ))}
-      </div>
-
       <div className={styles.spacer} />
 
       <div className={styles.menuGroup}>

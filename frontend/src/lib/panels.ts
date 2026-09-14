@@ -1,15 +1,22 @@
+import type { Timeframe } from "@/lib/api";
+import { DEFAULT_SYMBOL } from "@/lib/symbols";
+
 export type PanelType = "chart" | "placeholder";
 
 export interface PanelInstance {
   id: string;
   type: PanelType;
   title: string;
+  // Only meaningful for type: "chart" -- each chart panel fetches its own
+  // data, so it tracks its own symbol/timeframe independently.
+  symbol?: string;
+  timeframe?: Timeframe;
 }
 
 const STORAGE_KEY = "nq-grid-panels";
 
 export const DEFAULT_PANELS: PanelInstance[] = [
-  { id: "chart", type: "chart", title: "Chart" },
+  { id: "chart", type: "chart", title: "Chart", symbol: DEFAULT_SYMBOL, timeframe: "1d" },
   { id: "panel-1", type: "placeholder", title: "Panel 1" },
   { id: "panel-2", type: "placeholder", title: "Panel 2" },
 ];
