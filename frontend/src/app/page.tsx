@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import DashboardGrid from "@/components/DashboardGrid";
-import SettingsPanel from "@/components/SettingsPanel";
+import Toolbar from "@/components/Toolbar";
 import { fetchCandles, type Timeframe } from "@/lib/api";
 import { DEFAULT_COLORS, loadChartColors, saveChartColors, clearChartColors, type ChartColors } from "@/lib/colors";
 import type { Candle } from "@/lib/types";
@@ -12,6 +12,8 @@ export default function Home() {
   const [timeframe, setTimeframe] = useState<Timeframe>("1d");
   const [emaFast, setEmaFast] = useState(20);
   const [emaSlow, setEmaSlow] = useState(200);
+  const [showEmaFast, setShowEmaFast] = useState(true);
+  const [showEmaSlow, setShowEmaSlow] = useState(true);
   const [showVwap, setShowVwap] = useState(true);
   const [showPriorDay, setShowPriorDay] = useState(true);
   const [colors, setColors] = useState<ChartColors>(DEFAULT_COLORS);
@@ -20,10 +22,12 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const emaPeriods = useMemo(
-    () => [emaFast, emaSlow].filter((p) => Number.isFinite(p) && p > 0),
-    [emaFast, emaSlow]
-  );
+  const emaPeriods = useMemo(() => {
+    const periods: number[] = [];
+    if (showEmaFast && Number.isFinite(emaFast) && emaFast > 0) periods.push(emaFast);
+    if (showEmaSlow && Number.isFinite(emaSlow) && emaSlow > 0) periods.push(emaSlow);
+    return periods;
+  }, [emaFast, emaSlow, showEmaFast, showEmaSlow]);
 
   useEffect(() => {
     // localStorage is only available client-side, so defaults are rendered
@@ -79,6 +83,27 @@ export default function Home() {
 
   return (
     <div className={styles.page}>
+      <Toolbar
+        timeframe={timeframe}
+        onTimeframeChange={setTimeframe}
+        colors={colors}
+        onColorChange={updateColors}
+        onEmaColorChange={updateEmaColor}
+        onResetColors={resetColors}
+        emaPeriods={emaPeriods}
+        showVwap={showVwap}
+        onShowVwapChange={setShowVwap}
+        showPriorDay={showPriorDay}
+        onShowPriorDayChange={setShowPriorDay}
+        emaFast={emaFast}
+        onEmaFastChange={setEmaFast}
+        showEmaFast={showEmaFast}
+        onShowEmaFastChange={setShowEmaFast}
+        emaSlow={emaSlow}
+        onEmaSlowChange={setEmaSlow}
+        showEmaSlow={showEmaSlow}
+        onShowEmaSlowChange={setShowEmaSlow}
+      />
       <main className={styles.main}>
         <h1 className={styles.title}>NQ=F</h1>
         {error && <p className={styles.error}>Failed to load candles: {error}</p>}
@@ -91,23 +116,6 @@ export default function Home() {
           colors={colors}
         />
       </main>
-      <SettingsPanel
-        timeframe={timeframe}
-        emaFast={emaFast}
-        emaSlow={emaSlow}
-        showVwap={showVwap}
-        showPriorDay={showPriorDay}
-        emaPeriods={emaPeriods}
-        colors={colors}
-        onTimeframeChange={setTimeframe}
-        onEmaFastChange={setEmaFast}
-        onEmaSlowChange={setEmaSlow}
-        onShowVwapChange={setShowVwap}
-        onShowPriorDayChange={setShowPriorDay}
-        onColorChange={updateColors}
-        onEmaColorChange={updateEmaColor}
-        onResetColors={resetColors}
-      />
     </div>
   );
 }
