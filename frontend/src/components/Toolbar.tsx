@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import MarketStatus from "@/components/MarketStatus";
 import { emaColorFor, type ChartColors } from "@/lib/colors";
 import type { PanelType } from "@/lib/panels";
 import styles from "./Toolbar.module.css";
@@ -108,6 +109,8 @@ export default function Toolbar({
 
   return (
     <div ref={rootRef} className={styles.toolbar}>
+      <MarketStatus />
+
       <div className={styles.spacer} />
 
       <div className={styles.menuGroup}>

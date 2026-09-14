@@ -10,6 +10,52 @@
   border-bottom: 1px solid #2b2b43;
 }
 
+.marketStatusGroup {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.logo {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #d1d4dc;
+  letter-spacing: 0.02em;
+}
+
+.marketStatus {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #9598a1;
+}
+
+.statusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.marketOpen {
+  color: #26a69a;
+}
+
+.marketClosed {
+  color: #ef5350;
+}
+
+.clock {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #9598a1;
+  font-variant-numeric: tabular-nums;
+}
+
 .spacer {
   flex: 1;
 }
