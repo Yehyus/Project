@@ -10,6 +10,21 @@
   border-bottom: 1px solid #2b2b43;
 }
 
+.symbolSelect {
+  background: #1e222d;
+  border: 1px solid #2b2b43;
+  border-radius: 4px;
+  color: #d1d4dc;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.symbolSelect:hover {
+  background: #2b2b43;
+}
+
 .timeframes {
   display: flex;
   gap: 0.25rem;

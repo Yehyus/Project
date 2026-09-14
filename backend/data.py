@@ -1,4 +1,4 @@
-"""Historical OHLCV data for NQ=F (Nasdaq futures) via yfinance.
+"""Historical OHLCV data for a given ticker symbol via yfinance.
 
 Fetches daily or intraday bars and normalizes them into a consistent
 DataFrame shape: a tz-aware datetime index named "datetime" and lowercase
@@ -14,7 +14,7 @@ from typing import Optional, Union
 import pandas as pd
 import yfinance as yf
 
-TICKER = "NQ=F"
+DEFAULT_TICKER = "NQ=F"
 
 # yfinance/Yahoo enforce how far back intraday data can be requested.
 INTRADAY_LOOKBACK_DAYS = {"1m": 7, "5m": 60}
@@ -24,12 +24,14 @@ DateLike = Union[str, date, datetime]
 
 
 def get_ohlcv(
+    symbol: str = DEFAULT_TICKER,
     timeframe: str = "1d",
     start: Optional[DateLike] = None,
     end: Optional[DateLike] = None,
 ) -> pd.DataFrame:
-    """Fetch NQ=F OHLCV data for the given timeframe and date range.
+    """Fetch OHLCV data for `symbol` and the given timeframe/date range.
 
+    symbol: any ticker yfinance accepts (e.g. "NQ=F", "ES=F", "AAPL").
     timeframe: "1d", "5m", or "1m".
     start/end: optional date bounds (yfinance semantics: end is exclusive).
 
@@ -39,7 +41,7 @@ def get_ohlcv(
     if timeframe not in VALID_TIMEFRAMES:
         raise ValueError(f"Unsupported timeframe: {timeframe!r}, expected one of {VALID_TIMEFRAMES}")
 
-    ticker = yf.Ticker(TICKER)
+    ticker = yf.Ticker(symbol)
 
     lookback_days = INTRADAY_LOOKBACK_DAYS.get(timeframe)
     if start is None and end is None and lookback_days is not None:

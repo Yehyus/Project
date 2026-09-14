@@ -1,14 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import DashboardGrid from "@/components/DashboardGrid";
+import { useEffect, useMemo, useRef, useState } from "react";
+import DashboardGrid, { type DashboardGridHandle } from "@/components/DashboardGrid";
 import Toolbar from "@/components/Toolbar";
 import { fetchCandles, type Timeframe } from "@/lib/api";
 import { DEFAULT_COLORS, loadChartColors, saveChartColors, clearChartColors, type ChartColors } from "@/lib/colors";
+import { DEFAULT_SYMBOL } from "@/lib/symbols";
 import type { Candle } from "@/lib/types";
 import styles from "./page.module.css";
 
 export default function Home() {
+  const [symbol, setSymbol] = useState(DEFAULT_SYMBOL);
   const [timeframe, setTimeframe] = useState<Timeframe>("1d");
   const [emaFast, setEmaFast] = useState(20);
   const [emaSlow, setEmaSlow] = useState(200);
@@ -21,6 +23,8 @@ export default function Home() {
   const [candles, setCandles] = useState<Candle[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const gridRef = useRef<DashboardGridHandle>(null);
 
   const emaPeriods = useMemo(() => {
     const periods: number[] = [];
@@ -44,7 +48,7 @@ export default function Home() {
     setLoading(true);
     setError(null);
 
-    fetchCandles({ timeframe, emaPeriods, vwap: showVwap, priorDayLevels: showPriorDay })
+    fetchCandles({ symbol, timeframe, emaPeriods, vwap: showVwap, priorDayLevels: showPriorDay })
       .then((data) => {
         if (!cancelled) setCandles(data.candles);
       })
@@ -58,7 +62,7 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, [timeframe, emaPeriods, showVwap, showPriorDay]);
+  }, [symbol, timeframe, emaPeriods, showVwap, showPriorDay]);
 
   const updateColors = (patch: Partial<ChartColors>) => {
     setColors((prev) => {
@@ -84,12 +88,15 @@ export default function Home() {
   return (
     <div className={styles.page}>
       <Toolbar
+        symbol={symbol}
+        onSymbolChange={setSymbol}
         timeframe={timeframe}
         onTimeframeChange={setTimeframe}
         colors={colors}
         onColorChange={updateColors}
         onEmaColorChange={updateEmaColor}
         onResetColors={resetColors}
+        onResetLayout={() => gridRef.current?.resetLayout()}
         emaPeriods={emaPeriods}
         showVwap={showVwap}
         onShowVwapChange={setShowVwap}
@@ -105,10 +112,11 @@ export default function Home() {
         onShowEmaSlowChange={setShowEmaSlow}
       />
       <main className={styles.main}>
-        <h1 className={styles.title}>NQ=F</h1>
+        <h1 className={styles.title}>{symbol}</h1>
         {error && <p className={styles.error}>Failed to load candles: {error}</p>}
         {loading && <p className={styles.status}>Loading...</p>}
         <DashboardGrid
+          ref={gridRef}
           candles={candles}
           emaPeriods={emaPeriods}
           showVwap={showVwap}

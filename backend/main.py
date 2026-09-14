@@ -1,7 +1,8 @@
-"""FastAPI app exposing NQ=F candles with optional, parameterized indicators."""
+"""FastAPI app exposing candle data with optional, parameterized indicators."""
 
 from __future__ import annotations
 
+import re
 from datetime import date
 from typing import List, Optional
 
@@ -12,7 +13,11 @@ from fastapi.middleware.cors import CORSMiddleware
 import data
 import indicators
 
-app = FastAPI(title="NQ=F Candles API")
+app = FastAPI(title="Candles API")
+
+# yfinance ticker symbols: letters/digits plus the handful of punctuation
+# marks Yahoo actually uses (=F futures, ^ indices, . share classes, - misc).
+_SYMBOL_RE = re.compile(r"^[A-Za-z0-9=^.\-]{1,15}$")
 
 app.add_middleware(
     CORSMiddleware,
@@ -37,6 +42,7 @@ def _parse_ema_periods(ema: Optional[str]) -> List[int]:
 
 @app.get("/api/candles")
 def get_candles(
+    symbol: str = Query(data.DEFAULT_TICKER, description="Ticker symbol, e.g. NQ=F, ES=F, AAPL"),
     timeframe: str = Query("1d", description="1d, 5m, or 1m"),
     start: Optional[date] = Query(None, description="Start date (inclusive)"),
     end: Optional[date] = Query(None, description="End date (exclusive)"),
@@ -44,12 +50,15 @@ def get_candles(
     vwap: bool = Query(False, description="Include session VWAP"),
     prior_day_levels: bool = Query(False, description="Include prior day high/low"),
 ):
+    if not _SYMBOL_RE.match(symbol):
+        raise HTTPException(status_code=400, detail=f"Invalid symbol: {symbol!r}")
+
     if timeframe not in data.VALID_TIMEFRAMES:
         raise HTTPException(status_code=400, detail=f"timeframe must be one of {sorted(data.VALID_TIMEFRAMES)}")
 
     ema_periods = _parse_ema_periods(ema)
 
-    df = data.get_ohlcv(timeframe=timeframe, start=start, end=end)
+    df = data.get_ohlcv(symbol=symbol, timeframe=timeframe, start=start, end=end)
     if df.empty:
         return {"candles": []}
 

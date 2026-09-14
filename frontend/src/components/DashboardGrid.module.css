@@ -1,32 +1,7 @@
-.wrapper {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  flex: 1;
-  min-width: 0;
-}
-
-.toolbar {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.resetButton {
-  background: #1e222d;
-  border: 1px solid #2b2b43;
-  border-radius: 4px;
-  color: #d1d4dc;
-  padding: 0.45rem 0.75rem;
-  font-size: 0.85rem;
-  cursor: pointer;
-}
-
-.resetButton:hover {
-  background: #2b2b43;
-}
-
 .gridContainer {
   width: 100%;
+  flex: 1;
+  min-width: 0;
 }
 
 .panel {

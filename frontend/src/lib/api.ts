@@ -5,6 +5,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000"
 export type Timeframe = "1d" | "5m" | "1m";
 
 export interface FetchCandlesParams {
+  symbol?: string;
   timeframe?: Timeframe;
   emaPeriods?: number[];
   vwap?: boolean;
@@ -12,12 +13,13 @@ export interface FetchCandlesParams {
 }
 
 export async function fetchCandles({
+  symbol = "NQ=F",
   timeframe = "1d",
   emaPeriods = [],
   vwap = false,
   priorDayLevels = false,
 }: FetchCandlesParams): Promise<CandlesResponse> {
-  const params = new URLSearchParams({ timeframe });
+  const params = new URLSearchParams({ symbol, timeframe });
   if (emaPeriods.length > 0) {
     params.set("ema", emaPeriods.join(","));
   }

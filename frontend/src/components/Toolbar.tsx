@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Timeframe } from "@/lib/api";
 import { emaColorFor, type ChartColors } from "@/lib/colors";
+import { SYMBOLS } from "@/lib/symbols";
 import styles from "./Toolbar.module.css";
 
 const TIMEFRAMES: { value: Timeframe; label: string }[] = [
@@ -12,6 +13,9 @@ const TIMEFRAMES: { value: Timeframe; label: string }[] = [
 ];
 
 interface ToolbarProps {
+  symbol: string;
+  onSymbolChange: (value: string) => void;
+
   timeframe: Timeframe;
   onTimeframeChange: (value: Timeframe) => void;
 
@@ -19,6 +23,7 @@ interface ToolbarProps {
   onColorChange: (patch: Partial<ChartColors>) => void;
   onEmaColorChange: (period: number, color: string) => void;
   onResetColors: () => void;
+  onResetLayout: () => void;
   emaPeriods: number[];
 
   showVwap: boolean;
@@ -65,12 +70,15 @@ function ToolsIcon() {
 }
 
 export default function Toolbar({
+  symbol,
+  onSymbolChange,
   timeframe,
   onTimeframeChange,
   colors,
   onColorChange,
   onEmaColorChange,
   onResetColors,
+  onResetLayout,
   emaPeriods,
   showVwap,
   onShowVwapChange,
@@ -105,6 +113,19 @@ export default function Toolbar({
 
   return (
     <div ref={rootRef} className={styles.toolbar}>
+      <select
+        className={styles.symbolSelect}
+        value={symbol}
+        onChange={(e) => onSymbolChange(e.target.value)}
+        aria-label="Symbol"
+      >
+        {SYMBOLS.map((s) => (
+          <option key={s.value} value={s.value}>
+            {s.label}
+          </option>
+        ))}
+      </select>
+
       <div className={styles.timeframes}>
         {TIMEFRAMES.map((tf) => (
           <button
@@ -264,6 +285,13 @@ export default function Toolbar({
 
             <button type="button" className={styles.resetButton} onClick={onResetColors}>
               Reset to defaults
+            </button>
+
+            <hr className={styles.divider} />
+
+            <h3 className={styles.dropdownHeading}>Layout</h3>
+            <button type="button" className={styles.resetButton} onClick={onResetLayout}>
+              Reset layout
             </button>
           </div>
         )}
