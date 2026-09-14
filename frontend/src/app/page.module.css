@@ -16,13 +16,6 @@
   min-width: 0;
 }
 
-.title {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #d1d4dc;
-  margin: 0;
-}
-
 .status {
   color: #9598a1;
   font-size: 0.9rem;

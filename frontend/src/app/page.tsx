@@ -5,12 +5,12 @@ import DashboardGrid, { type DashboardGridHandle } from "@/components/DashboardG
 import Toolbar from "@/components/Toolbar";
 import { fetchCandles, type Timeframe } from "@/lib/api";
 import { DEFAULT_COLORS, loadChartColors, saveChartColors, clearChartColors, type ChartColors } from "@/lib/colors";
+import { DEFAULT_SYMBOL } from "@/lib/symbols";
 import type { Candle } from "@/lib/types";
 import styles from "./page.module.css";
 
-const SYMBOL = "NQ=F";
-
 export default function Home() {
+  const [symbol, setSymbol] = useState(DEFAULT_SYMBOL);
   const [timeframe, setTimeframe] = useState<Timeframe>("1d");
   const [emaFast, setEmaFast] = useState(20);
   const [emaSlow, setEmaSlow] = useState(200);
@@ -48,7 +48,7 @@ export default function Home() {
     setLoading(true);
     setError(null);
 
-    fetchCandles({ symbol: SYMBOL, timeframe, emaPeriods, vwap: showVwap, priorDayLevels: showPriorDay })
+    fetchCandles({ symbol, timeframe, emaPeriods, vwap: showVwap, priorDayLevels: showPriorDay })
       .then((data) => {
         if (!cancelled) setCandles(data.candles);
       })
@@ -62,7 +62,7 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, [timeframe, emaPeriods, showVwap, showPriorDay]);
+  }, [symbol, timeframe, emaPeriods, showVwap, showPriorDay]);
 
   const updateColors = (patch: Partial<ChartColors>) => {
     setColors((prev) => {
@@ -88,6 +88,8 @@ export default function Home() {
   return (
     <div className={styles.page}>
       <Toolbar
+        symbol={symbol}
+        onSymbolChange={setSymbol}
         timeframe={timeframe}
         onTimeframeChange={setTimeframe}
         onAddPanel={(type) => gridRef.current?.addPanel(type)}
@@ -111,7 +113,6 @@ export default function Home() {
         onShowEmaSlowChange={setShowEmaSlow}
       />
       <main className={styles.main}>
-        <h1 className={styles.title}>{SYMBOL}</h1>
         {error && <p className={styles.error}>Failed to load candles: {error}</p>}
         {loading && <p className={styles.status}>Loading...</p>}
         <DashboardGrid
