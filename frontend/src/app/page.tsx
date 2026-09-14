@@ -12,7 +12,7 @@ export default function Home() {
   const [showEmaFast, setShowEmaFast] = useState(false);
   const [showEmaSlow, setShowEmaSlow] = useState(false);
   const [showVwap, setShowVwap] = useState(false);
-  const [showPriorDay, setShowPriorDay] = useState(true);
+  const [showPriorDay, setShowPriorDay] = useState(false);
   const [colors, setColors] = useState<ChartColors>(DEFAULT_COLORS);
 
   const gridRef = useRef<DashboardGridHandle>(null);
