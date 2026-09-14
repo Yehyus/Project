@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Timeframe } from "@/lib/api";
 import { emaColorFor, type ChartColors } from "@/lib/colors";
-import { SYMBOLS } from "@/lib/symbols";
+import type { PanelType } from "@/lib/panels";
 import styles from "./Toolbar.module.css";
 
 const TIMEFRAMES: { value: Timeframe; label: string }[] = [
@@ -13,11 +13,10 @@ const TIMEFRAMES: { value: Timeframe; label: string }[] = [
 ];
 
 interface ToolbarProps {
-  symbol: string;
-  onSymbolChange: (value: string) => void;
-
   timeframe: Timeframe;
   onTimeframeChange: (value: Timeframe) => void;
+
+  onAddPanel: (type: PanelType) => void;
 
   colors: ChartColors;
   onColorChange: (patch: Partial<ChartColors>) => void;
@@ -42,13 +41,22 @@ interface ToolbarProps {
   onShowEmaSlowChange: (value: boolean) => void;
 }
 
-type OpenMenu = "settings" | "tools" | null;
+type OpenMenu = "settings" | "tools" | "panels" | null;
 
 function SettingsIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <circle cx="12" cy="12" r="3" />
       <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
+  );
+}
+
+function PlusIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <line x1="5" y1="12" x2="19" y2="12" />
     </svg>
   );
 }
@@ -70,10 +78,9 @@ function ToolsIcon() {
 }
 
 export default function Toolbar({
-  symbol,
-  onSymbolChange,
   timeframe,
   onTimeframeChange,
+  onAddPanel,
   colors,
   onColorChange,
   onEmaColorChange,
@@ -113,19 +120,6 @@ export default function Toolbar({
 
   return (
     <div ref={rootRef} className={styles.toolbar}>
-      <select
-        className={styles.symbolSelect}
-        value={symbol}
-        onChange={(e) => onSymbolChange(e.target.value)}
-        aria-label="Symbol"
-      >
-        {SYMBOLS.map((s) => (
-          <option key={s.value} value={s.value}>
-            {s.label}
-          </option>
-        ))}
-      </select>
-
       <div className={styles.timeframes}>
         {TIMEFRAMES.map((tf) => (
           <button
@@ -140,6 +134,44 @@ export default function Toolbar({
       </div>
 
       <div className={styles.spacer} />
+
+      <div className={styles.menuGroup}>
+        <button
+          type="button"
+          className={`${styles.iconButton} ${openMenu === "panels" ? styles.iconButtonActive : ""}`}
+          onClick={() => toggleMenu("panels")}
+          aria-label="Add panel"
+        >
+          <PlusIcon />
+          <span>Panels</span>
+        </button>
+        {openMenu === "panels" && (
+          <div className={`${styles.dropdown} ${styles.dropdownRight}`}>
+            <h3 className={styles.dropdownHeading}>Add panel</h3>
+
+            <button
+              type="button"
+              className={styles.menuItem}
+              onClick={() => {
+                onAddPanel("chart");
+                setOpenMenu(null);
+              }}
+            >
+              Chart
+            </button>
+            <button
+              type="button"
+              className={styles.menuItem}
+              onClick={() => {
+                onAddPanel("placeholder");
+                setOpenMenu(null);
+              }}
+            >
+              Empty panel
+            </button>
+          </div>
+        )}
+      </div>
 
       <div className={styles.menuGroup}>
         <button
