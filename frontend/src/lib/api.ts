@@ -1,4 +1,4 @@
-import type { CandlesResponse } from "./types";
+import type { CandlesResponse, SweepsResponse } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
 
@@ -29,6 +29,24 @@ export async function fetchCandles({
   const res = await fetch(`${API_BASE}/api/candles?${params.toString()}`);
   if (!res.ok) {
     throw new Error(`Failed to fetch candles: ${res.status} ${res.statusText}`);
+  }
+  return res.json();
+}
+
+export interface FetchSweepsParams {
+  symbol?: string;
+  thresholdTicks?: number;
+}
+
+export async function fetchSweeps({
+  symbol = "NQ=F",
+  thresholdTicks = 4,
+}: FetchSweepsParams): Promise<SweepsResponse> {
+  const params = new URLSearchParams({ symbol, threshold_ticks: String(thresholdTicks) });
+
+  const res = await fetch(`${API_BASE}/api/sweeps?${params.toString()}`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch sweeps: ${res.status} ${res.statusText}`);
   }
   return res.json();
 }

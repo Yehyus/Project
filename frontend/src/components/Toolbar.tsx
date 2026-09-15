@@ -30,6 +30,11 @@ interface ToolbarProps {
   onEmaSlowChange: (value: number) => void;
   showEmaSlow: boolean;
   onShowEmaSlowChange: (value: boolean) => void;
+
+  showSweeps: boolean;
+  onShowSweepsChange: (value: boolean) => void;
+  sweepThresholdTicks: number;
+  onSweepThresholdTicksChange: (value: number) => void;
 }
 
 type OpenMenu = "settings" | "tools" | "panels" | null;
@@ -88,6 +93,10 @@ export default function Toolbar({
   onEmaSlowChange,
   showEmaSlow,
   onShowEmaSlowChange,
+  showSweeps,
+  onShowSweepsChange,
+  sweepThresholdTicks,
+  onSweepThresholdTicksChange,
 }: ToolbarProps) {
   const [openMenu, setOpenMenu] = useState<OpenMenu>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -226,6 +235,28 @@ export default function Toolbar({
                 value={emaSlow}
                 onChange={(e) => onEmaSlowChange(Number(e.target.value))}
                 className={styles.periodInput}
+              />
+            </div>
+
+            <hr className={styles.divider} />
+
+            <div className={styles.toggleRow}>
+              <label className={styles.switch}>
+                <input
+                  type="checkbox"
+                  checked={showSweeps}
+                  onChange={(e) => onShowSweepsChange(e.target.checked)}
+                />
+                <span className={styles.slider} />
+              </label>
+              <span>Sweep/reclaim (5m)</span>
+              <input
+                type="number"
+                min={1}
+                value={sweepThresholdTicks}
+                onChange={(e) => onSweepThresholdTicksChange(Number(e.target.value))}
+                className={styles.periodInput}
+                aria-label="Sweep penetration threshold, in ticks"
               />
             </div>
           </div>

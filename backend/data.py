@@ -20,6 +20,23 @@ DEFAULT_TICKER = "NQ=F"
 INTRADAY_LOOKBACK_DAYS = {"1m": 7, "5m": 60}
 VALID_TIMEFRAMES = {"1d", "5m", "1m"}
 
+# Minimum price increment per futures contract, used to convert a
+# tick-count threshold (e.g. "4 ticks") into a price offset. Unlisted
+# symbols fall back to DEFAULT_TICK_SIZE.
+TICK_SIZES = {
+    "NQ=F": 0.25,
+    "ES=F": 0.25,
+    "YM=F": 1.0,
+    "RTY=F": 0.1,
+    "CL=F": 0.01,
+    "GC=F": 0.1,
+}
+DEFAULT_TICK_SIZE = 0.25
+
+
+def tick_size_for(symbol: str) -> float:
+    return TICK_SIZES.get(symbol, DEFAULT_TICK_SIZE)
+
 DateLike = Union[str, date, datetime]
 
 

@@ -3,16 +3,20 @@
 import { useEffect, useRef } from "react";
 import {
   createChart,
+  createSeriesMarkers,
   CandlestickSeries,
   LineSeries,
   ColorType,
   LineStyle,
   type IChartApi,
   type ISeriesApi,
+  type ISeriesMarkersPluginApi,
   type IPriceLine,
+  type SeriesMarker,
+  type Time,
   type UTCTimestamp,
 } from "lightweight-charts";
-import type { Candle } from "@/lib/types";
+import type { Candle, SweepSetup } from "@/lib/types";
 import { emaColorFor, type ChartColors } from "@/lib/colors";
 
 interface CandleChartProps {
@@ -20,6 +24,7 @@ interface CandleChartProps {
   emaPeriods: number[];
   showVwap: boolean;
   showPriorDay: boolean;
+  sweeps: SweepSetup[];
   colors: ChartColors;
 }
 
@@ -34,12 +39,20 @@ function toUnixTime(datetime: string): UTCTimestamp {
   return Math.floor(new Date(datetime.replace(" ", "T")).getTime() / 1000) as UTCTimestamp;
 }
 
-export default function CandleChart({ candles, emaPeriods, showVwap, showPriorDay, colors }: CandleChartProps) {
+export default function CandleChart({
+  candles,
+  emaPeriods,
+  showVwap,
+  showPriorDay,
+  sweeps,
+  colors,
+}: CandleChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const extraSeriesRef = useRef<ExtraSeriesEntry[]>([]);
   const priceLinesRef = useRef<IPriceLine[]>([]);
+  const seriesMarkersRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
   const colorsRef = useRef(colors);
 
   useEffect(() => {
@@ -71,6 +84,7 @@ export default function CandleChart({ candles, emaPeriods, showVwap, showPriorDa
       wickUpColor: colorsRef.current.candleUp,
       wickDownColor: colorsRef.current.candleDown,
     });
+    seriesMarkersRef.current = createSeriesMarkers(candleSeriesRef.current, []);
 
     // The container is resized by its parent (e.g. a draggable/resizable grid
     // panel), not just the window, so a ResizeObserver is required to keep
@@ -92,6 +106,7 @@ export default function CandleChart({ candles, emaPeriods, showVwap, showPriorDa
       candleSeriesRef.current = null;
       extraSeriesRef.current = [];
       priceLinesRef.current = [];
+      seriesMarkersRef.current = null;
     };
   }, []);
 
@@ -175,6 +190,43 @@ export default function CandleChart({ candles, emaPeriods, showVwap, showPriorDa
 
     chart.timeScale().fitContent();
   }, [candles, emaPeriods, showVwap, showPriorDay]);
+
+  useEffect(() => {
+    const markersApi = seriesMarkersRef.current;
+    if (!markersApi) return;
+
+    const markers: SeriesMarker<Time>[] = [];
+    sweeps.forEach((s) => {
+      const isLowSweep = s.side === "low";
+
+      markers.push({
+        time: toUnixTime(s.sweep_time),
+        position: isLowSweep ? "belowBar" : "aboveBar",
+        color: "#FFB300",
+        shape: isLowSweep ? "arrowDown" : "arrowUp",
+        text: "Sweep",
+      });
+      markers.push({
+        time: toUnixTime(s.reclaim_time),
+        position: isLowSweep ? "belowBar" : "aboveBar",
+        color: "#42A5F5",
+        shape: "circle",
+        text: "Reclaim",
+      });
+      if (s.entry_time) {
+        markers.push({
+          time: toUnixTime(s.entry_time),
+          position: isLowSweep ? "aboveBar" : "belowBar",
+          color: "#66BB6A",
+          shape: isLowSweep ? "arrowUp" : "arrowDown",
+          text: "Entry",
+        });
+      }
+    });
+
+    markers.sort((a, b) => (a.time as number) - (b.time as number));
+    markersApi.setMarkers(markers);
+  }, [sweeps]);
 
   useEffect(() => {
     const chart = chartRef.current;

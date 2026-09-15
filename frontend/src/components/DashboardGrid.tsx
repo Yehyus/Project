@@ -16,6 +16,8 @@ interface DashboardGridProps {
   emaPeriods: number[];
   showVwap: boolean;
   showPriorDay: boolean;
+  showSweeps: boolean;
+  sweepThresholdTicks: number;
   colors: ChartColors;
 }
 
@@ -47,7 +49,7 @@ function bottomOf(layout: Layout): number {
 }
 
 const DashboardGrid = forwardRef<DashboardGridHandle, DashboardGridProps>(function DashboardGrid(
-  { emaPeriods, showVwap, showPriorDay, colors },
+  { emaPeriods, showVwap, showPriorDay, showSweeps, sweepThresholdTicks, colors },
   ref
 ) {
   const { width, containerRef, mounted } = useContainerWidth();
@@ -198,6 +200,8 @@ const DashboardGrid = forwardRef<DashboardGridHandle, DashboardGridProps>(functi
                     emaPeriods={emaPeriods}
                     showVwap={showVwap}
                     showPriorDay={showPriorDay}
+                    showSweeps={showSweeps}
+                    sweepThresholdTicks={sweepThresholdTicks}
                     colors={colors}
                   />
                 ) : (

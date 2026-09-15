@@ -13,6 +13,8 @@ export default function Home() {
   const [showEmaSlow, setShowEmaSlow] = useState(false);
   const [showVwap, setShowVwap] = useState(false);
   const [showPriorDay, setShowPriorDay] = useState(false);
+  const [showSweeps, setShowSweeps] = useState(false);
+  const [sweepThresholdTicks, setSweepThresholdTicks] = useState(4);
   const [colors, setColors] = useState<ChartColors>(DEFAULT_COLORS);
 
   const gridRef = useRef<DashboardGridHandle>(null);
@@ -74,6 +76,10 @@ export default function Home() {
         onEmaSlowChange={setEmaSlow}
         showEmaSlow={showEmaSlow}
         onShowEmaSlowChange={setShowEmaSlow}
+        showSweeps={showSweeps}
+        onShowSweepsChange={setShowSweeps}
+        sweepThresholdTicks={sweepThresholdTicks}
+        onSweepThresholdTicksChange={setSweepThresholdTicks}
       />
       <main className={styles.main}>
         <DashboardGrid
@@ -81,6 +87,8 @@ export default function Home() {
           emaPeriods={emaPeriods}
           showVwap={showVwap}
           showPriorDay={showPriorDay}
+          showSweeps={showSweeps}
+          sweepThresholdTicks={sweepThresholdTicks}
           colors={colors}
         />
       </main>

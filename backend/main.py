@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from datetime import date
+from datetime import date, timedelta
 from typing import List, Optional
 
 import pandas as pd
@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 import data
 import indicators
+import sweep as sweep_module
 
 app = FastAPI(title="Candles API")
 
@@ -80,3 +81,73 @@ def get_candles(
     result = result.astype(object).where(pd.notnull(result), None)
 
     return {"candles": result.to_dict(orient="records")}
+
+
+def _serialize_setup(setup: sweep_module.SweepSetup) -> dict:
+    return {
+        "side": setup.side,
+        "level": setup.level,
+        "sweep_time": str(setup.sweep_time),
+        "sweep_high": setup.sweep_high,
+        "sweep_low": setup.sweep_low,
+        "reclaim_time": str(setup.reclaim_time),
+        "reclaim_high": setup.reclaim_high,
+        "reclaim_low": setup.reclaim_low,
+        "entry_time": str(setup.entry_time) if setup.entry_time is not None else None,
+        "entry_price": setup.entry_price,
+    }
+
+
+@app.get("/api/sweeps")
+def get_sweeps(
+    symbol: str = Query(data.DEFAULT_TICKER, description="Ticker symbol, e.g. NQ=F, ES=F, AAPL"),
+    start: Optional[date] = Query(None, description="Start date (inclusive)"),
+    end: Optional[date] = Query(None, description="End date (exclusive)"),
+    threshold_ticks: float = Query(4, gt=0, description="Sweep penetration threshold, in ticks"),
+):
+    """Detect prior-day-high/low sweep/reclaim/entry setups on 5-minute candles.
+
+    Each session's prior-day high and low (computed from the full session,
+    including overnight) is checked independently as a sweep level.
+    """
+    if not _SYMBOL_RE.match(symbol):
+        raise HTTPException(status_code=400, detail=f"Invalid symbol: {symbol!r}")
+
+    tick_size = data.tick_size_for(symbol)
+    threshold = threshold_ticks * tick_size
+
+    # Fetch extra days before `start` so the first requested session still
+    # has a real prior-day high/low to sweep, rather than NaN.
+    fetch_start = start - timedelta(days=5) if start else None
+    df = data.get_ohlcv(symbol=symbol, timeframe="5m", start=fetch_start, end=end)
+    if df.empty:
+        return {"setups": []}
+
+    levels = indicators.prior_day_high_low(df)
+    session_key = df.index.normalize()
+
+    setups = []
+    for day, day_df in df.groupby(session_key):
+        if start is not None and day.date() < start:
+            continue
+
+        day_levels = levels.loc[day_df.index]
+        prior_high = day_levels["prior_day_high"].iloc[0]
+        prior_low = day_levels["prior_day_low"].iloc[0]
+
+        if pd.notna(prior_high):
+            setup = sweep_module.find_sweep_reclaim(
+                day_df, level=float(prior_high), side="high", penetration_threshold=threshold
+            )
+            if setup:
+                setups.append(_serialize_setup(setup))
+
+        if pd.notna(prior_low):
+            setup = sweep_module.find_sweep_reclaim(
+                day_df, level=float(prior_low), side="low", penetration_threshold=threshold
+            )
+            if setup:
+                setups.append(_serialize_setup(setup))
+
+    setups.sort(key=lambda s: s["sweep_time"])
+    return {"setups": setups}
