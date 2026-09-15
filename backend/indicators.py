@@ -9,6 +9,26 @@ from __future__ import annotations
 
 import pandas as pd
 
+# CME Globex futures trade nearly continuously and roll from one trading
+# session into the next at ~18:00 exchange time (after the 17:00-18:00
+# maintenance break), not at midnight. Using literal midnight-to-midnight
+# calendar days would split that overnight leg off into its own tiny
+# "session" (e.g. Sunday's few hours of evening trading), which then wrongly
+# becomes "the prior day" for Monday instead of Friday's real session.
+SESSION_RESET_HOUR = 18
+
+
+def session_date(index: pd.DatetimeIndex) -> pd.DatetimeIndex:
+    """Trading-session label for each timestamp in `index`.
+
+    A session runs from SESSION_RESET_HOUR the previous evening through
+    SESSION_RESET_HOUR the same calendar day; shifting timestamps forward by
+    (24 - SESSION_RESET_HOUR) hours before flooring to the day groups each
+    evening's overnight bars with the trading day whose regular session
+    follows them, rather than the calendar date the clock happens to read.
+    """
+    return (index + pd.Timedelta(hours=24 - SESSION_RESET_HOUR)).normalize()
+
 
 def ema(df: pd.DataFrame, period: int, column: str = "close") -> pd.Series:
     """Exponential moving average of `column` over the given period.
@@ -42,17 +62,21 @@ def session_vwap(df: pd.DataFrame) -> pd.Series:
 
 
 def prior_day_high_low(df: pd.DataFrame) -> pd.DataFrame:
-    """Prior trading day's high and low, broadcast onto every bar of the
-    following day(s).
+    """Prior trading session's high and low, broadcast onto every bar of the
+    following session.
+
+    Sessions are grouped by `session_date` (see above), so "prior day"
+    means the previous full trading session -- e.g. Friday's session for
+    Monday, not Sunday's few hours of overnight-only trading.
 
     Returns a DataFrame with columns prior_day_high / prior_day_low, aligned
     to df's index. The first session in the data has no prior day, so those
     rows are NaN.
     """
-    daily = df.resample("D").agg(high=("high", "max"), low=("low", "min")).dropna(how="all")
+    session_key = session_date(df.index)
+    daily = df.groupby(session_key).agg(high=("high", "max"), low=("low", "min"))
     prior = daily.shift(1).rename(columns={"high": "prior_day_high", "low": "prior_day_low"})
 
-    session_key = df.index.normalize()
     aligned = prior.reindex(session_key)
     aligned.index = df.index
     return aligned

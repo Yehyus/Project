@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from datetime import date, timedelta
+from datetime import date, time, timedelta
 from typing import List, Optional
 
 import pandas as pd
@@ -98,6 +98,13 @@ def _serialize_setup(setup: sweep_module.SweepSetup) -> dict:
     }
 
 
+# Sweep/reclaim/entry are only looked for during this window of each
+# session (exchange local time); the prior-day level itself is still
+# computed from the full session, overnight included.
+SCAN_WINDOW_START = time(9, 30)
+SCAN_WINDOW_END = time(12, 0)
+
+
 @app.get("/api/sweeps")
 def get_sweeps(
     symbol: str = Query(data.DEFAULT_TICKER, description="Ticker symbol, e.g. NQ=F, ES=F, AAPL"),
@@ -107,8 +114,10 @@ def get_sweeps(
 ):
     """Detect prior-day-high/low sweep/reclaim/entry setups on 5-minute candles.
 
-    Each session's prior-day high and low (computed from the full session,
-    including overnight) is checked independently as a sweep level.
+    Each session's prior-day high and low (computed from the full prior
+    trading session, including its overnight leg) is checked independently
+    as a sweep level, but the sweep/reclaim/entry scan itself is restricted
+    to the 9:30-12:00 window of the current session.
     """
     if not _SYMBOL_RE.match(symbol):
         raise HTTPException(status_code=400, detail=f"Invalid symbol: {symbol!r}")
@@ -124,7 +133,7 @@ def get_sweeps(
         return {"setups": []}
 
     levels = indicators.prior_day_high_low(df)
-    session_key = df.index.normalize()
+    session_key = indicators.session_date(df.index)
 
     setups = []
     for day, day_df in df.groupby(session_key):
@@ -135,16 +144,21 @@ def get_sweeps(
         prior_high = day_levels["prior_day_high"].iloc[0]
         prior_low = day_levels["prior_day_low"].iloc[0]
 
+        bar_times = day_df.index.time
+        scan_df = day_df.loc[(bar_times >= SCAN_WINDOW_START) & (bar_times < SCAN_WINDOW_END)]
+        if scan_df.empty:
+            continue
+
         if pd.notna(prior_high):
             setup = sweep_module.find_sweep_reclaim(
-                day_df, level=float(prior_high), side="high", penetration_threshold=threshold
+                scan_df, level=float(prior_high), side="high", penetration_threshold=threshold
             )
             if setup:
                 setups.append(_serialize_setup(setup))
 
         if pd.notna(prior_low):
             setup = sweep_module.find_sweep_reclaim(
-                day_df, level=float(prior_low), side="low", penetration_threshold=threshold
+                scan_df, level=float(prior_low), side="low", penetration_threshold=threshold
             )
             if setup:
                 setups.append(_serialize_setup(setup))
