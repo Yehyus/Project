@@ -6,6 +6,12 @@
       "runtimeExecutable": "cmd.exe",
       "runtimeArgs": ["/c", "set PATH=C:\\Program Files\\nodejs;%PATH%&& set NEXT_TELEMETRY_DISABLED=1&& npm --prefix frontend run dev"],
       "port": 3000
+    },
+    {
+      "name": "backend",
+      "runtimeExecutable": "cmd.exe",
+      "runtimeArgs": ["/c", "cd backend && venv\\Scripts\\uvicorn.exe main:app --reload --port 8000"],
+      "port": 8000
     }
   ]
 }
