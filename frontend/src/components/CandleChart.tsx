@@ -8,10 +8,10 @@ import {
   LineSeries,
   ColorType,
   LineStyle,
+  LineType,
   type IChartApi,
   type ISeriesApi,
   type ISeriesMarkersPluginApi,
-  type IPriceLine,
   type SeriesMarker,
   type Time,
   type UTCTimestamp,
@@ -30,7 +30,7 @@ interface CandleChartProps {
 
 interface ExtraSeriesEntry {
   series: ISeriesApi<"Line">;
-  kind: "ema" | "vwap";
+  kind: "ema" | "vwap" | "pdh" | "pdl";
   period?: number;
   index?: number;
 }
@@ -63,7 +63,6 @@ export default function CandleChart({
   const chartRef = useRef<IChartApi | null>(null);
   const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const extraSeriesRef = useRef<ExtraSeriesEntry[]>([]);
-  const priceLinesRef = useRef<IPriceLine[]>([]);
   const seriesMarkersRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
   const colorsRef = useRef(colors);
 
@@ -117,7 +116,6 @@ export default function CandleChart({
       chartRef.current = null;
       candleSeriesRef.current = null;
       extraSeriesRef.current = [];
-      priceLinesRef.current = [];
       seriesMarkersRef.current = null;
     };
   }, []);
@@ -139,8 +137,6 @@ export default function CandleChart({
 
     extraSeriesRef.current.forEach(({ series }) => chart.removeSeries(series));
     extraSeriesRef.current = [];
-    priceLinesRef.current.forEach((line) => candleSeries.removePriceLine(line));
-    priceLinesRef.current = [];
 
     emaPeriods.forEach((period, index) => {
       const key = `ema_${period}`;
@@ -174,29 +170,42 @@ export default function CandleChart({
     }
 
     if (showPriorDay) {
-      const latest = [...candles]
-        .reverse()
-        .find((c) => typeof c.prior_day_high === "number" && typeof c.prior_day_low === "number");
+      // Prior-day high/low changes every session, so this is drawn as a
+      // stepped line following each candle's own prior_day_high/low field
+      // (not a single flat priceLine off the latest bar) -- a flat line
+      // would show whichever session's level happens to be last in the
+      // fetched range, which can be a still-forming session whose "prior
+      // day" is misleadingly different from the level actually used to
+      // evaluate an earlier session's sweep/reclaim.
+      const pdhPoints = candles
+        .filter((c) => typeof c.prior_day_high === "number")
+        .map((c) => ({ time: toUnixTime(c.datetime), value: c.prior_day_high as number }));
+      const pdlPoints = candles
+        .filter((c) => typeof c.prior_day_low === "number")
+        .map((c) => ({ time: toUnixTime(c.datetime), value: c.prior_day_low as number }));
 
-      if (latest) {
-        priceLinesRef.current.push(
-          candleSeries.createPriceLine({
-            price: latest.prior_day_high as number,
-            color: "#26C6DA",
-            lineWidth: 1,
-            lineStyle: LineStyle.Dashed,
-            axisLabelVisible: true,
-            title: "PDH",
-          }),
-          candleSeries.createPriceLine({
-            price: latest.prior_day_low as number,
-            color: "#EF9A9A",
-            lineWidth: 1,
-            lineStyle: LineStyle.Dashed,
-            axisLabelVisible: true,
-            title: "PDL",
-          })
-        );
+      if (pdhPoints.length > 0) {
+        const series = chart.addSeries(LineSeries, {
+          color: "#26C6DA",
+          lineWidth: 1,
+          lineStyle: LineStyle.Dashed,
+          lineType: LineType.WithSteps,
+          title: "PDH",
+        });
+        series.setData(pdhPoints);
+        extraSeriesRef.current.push({ series, kind: "pdh" });
+      }
+
+      if (pdlPoints.length > 0) {
+        const series = chart.addSeries(LineSeries, {
+          color: "#EF9A9A",
+          lineWidth: 1,
+          lineStyle: LineStyle.Dashed,
+          lineType: LineType.WithSteps,
+          title: "PDL",
+        });
+        series.setData(pdlPoints);
+        extraSeriesRef.current.push({ series, kind: "pdl" });
       }
     }
 
