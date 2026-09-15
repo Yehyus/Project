@@ -35,8 +35,20 @@ interface ExtraSeriesEntry {
   index?: number;
 }
 
+// `datetime` is an exchange-local wall-clock string, e.g.
+// "2026-07-08 09:30:00-04:00" (always America/New_York, from the backend).
+// lightweight-charts formats its time axis and crosshair labels using the
+// UTC getters on `new Date(time * 1000)`, not the viewer's system timezone
+// -- so a true absolute-instant timestamp would display 09:30 ET as 13:30
+// (its UTC hour) on every viewer's chart, regardless of their own clock.
+// Building the epoch from the wall-clock digits directly (ignoring the
+// offset) instead makes those UTC getters read back the exchange's own
+// hours/minutes, so the axis always shows correct NY session time.
 function toUnixTime(datetime: string): UTCTimestamp {
-  return Math.floor(new Date(datetime.replace(" ", "T")).getTime() / 1000) as UTCTimestamp;
+  const [datePart, timePart] = datetime.split(" ");
+  const [year, month, day] = datePart.split("-").map(Number);
+  const [hour, minute, second] = timePart.slice(0, 8).split(":").map(Number);
+  return Math.floor(Date.UTC(year, month - 1, day, hour, minute, second) / 1000) as UTCTimestamp;
 }
 
 export default function CandleChart({
