@@ -177,11 +177,18 @@ export default function CandleChart({
     }
 
     if (showPriorDay && candles.length > 0) {
-      // Show exactly one dotted segment for the single most recent complete
-      // prior trading day's regular-hours (9:30-16:00) high and low, drawn
-      // only across that day's own candles -- not stepped across every
-      // session in the fetched history, and not a flat line spanning the
-      // whole chart.
+      // Show one dotted line each for the single most recent complete prior
+      // trading day's regular-hours (9:30-16:00) high and low, starting at
+      // that day's own market open and extending through the latest
+      // available candle so it works as a live reference against today's
+      // price action (not stopping at yesterday's close).
+      //
+      // The line is built with one point per candle across that whole span
+      // (not just 2 endpoints) -- a 2-point line, with a large time gap
+      // between its only two points, throws off lightweight-charts'
+      // fitContent() bar-spacing calculation and collapses the visible
+      // range to a couple of bars. Matching the candle series' own point
+      // density avoids that entirely.
       const today = splitDateTime(candles[candles.length - 1].datetime).date;
 
       let prevDate: string | null = null;
@@ -199,11 +206,12 @@ export default function CandleChart({
           return date === prevDate && time >= RTH_OPEN && time <= RTH_CLOSE;
         });
 
-        if (rthCandles.length > 0) {
+        const startIndex = candles.findIndex((c) => c.datetime === rthCandles[0]?.datetime);
+
+        if (rthCandles.length > 0 && startIndex !== -1) {
           const dayHigh = Math.max(...rthCandles.map((c) => c.high));
           const dayLow = Math.min(...rthCandles.map((c) => c.low));
-          const openTime = toUnixTime(rthCandles[0].datetime);
-          const closeTime = toUnixTime(rthCandles[rthCandles.length - 1].datetime);
+          const spanCandles = candles.slice(startIndex);
 
           const pdhSeries = chart.addSeries(LineSeries, {
             color: "#26C6DA",
@@ -213,10 +221,7 @@ export default function CandleChart({
             priceLineVisible: false,
             title: "PDH",
           });
-          pdhSeries.setData([
-            { time: openTime, value: dayHigh },
-            { time: closeTime, value: dayHigh },
-          ]);
+          pdhSeries.setData(spanCandles.map((c) => ({ time: toUnixTime(c.datetime), value: dayHigh })));
           extraSeriesRef.current.push({ series: pdhSeries, kind: "pdh" });
 
           const pdlSeries = chart.addSeries(LineSeries, {
@@ -227,10 +232,7 @@ export default function CandleChart({
             priceLineVisible: false,
             title: "PDL",
           });
-          pdlSeries.setData([
-            { time: openTime, value: dayLow },
-            { time: closeTime, value: dayLow },
-          ]);
+          pdlSeries.setData(spanCandles.map((c) => ({ time: toUnixTime(c.datetime), value: dayLow })));
           extraSeriesRef.current.push({ series: pdlSeries, kind: "pdl" });
         }
       }
