@@ -8,7 +8,6 @@ import {
   LineSeries,
   ColorType,
   LineStyle,
-  LineType,
   type IChartApi,
   type ISeriesApi,
   type ISeriesMarkersPluginApi,
@@ -50,6 +49,14 @@ function toUnixTime(datetime: string): UTCTimestamp {
   const [hour, minute, second] = timePart.slice(0, 8).split(":").map(Number);
   return Math.floor(Date.UTC(year, month - 1, day, hour, minute, second) / 1000) as UTCTimestamp;
 }
+
+function splitDateTime(datetime: string): { date: string; time: string } {
+  const [date, timePart] = datetime.split(" ");
+  return { date, time: timePart.slice(0, 8) };
+}
+
+const RTH_OPEN = "09:30:00";
+const RTH_CLOSE = "16:00:00";
 
 export default function CandleChart({
   candles,
@@ -169,43 +176,63 @@ export default function CandleChart({
       }
     }
 
-    if (showPriorDay) {
-      // Prior-day high/low changes every session, so this is drawn as a
-      // stepped line following each candle's own prior_day_high/low field
-      // (not a single flat priceLine off the latest bar) -- a flat line
-      // would show whichever session's level happens to be last in the
-      // fetched range, which can be a still-forming session whose "prior
-      // day" is misleadingly different from the level actually used to
-      // evaluate an earlier session's sweep/reclaim.
-      const pdhPoints = candles
-        .filter((c) => typeof c.prior_day_high === "number")
-        .map((c) => ({ time: toUnixTime(c.datetime), value: c.prior_day_high as number }));
-      const pdlPoints = candles
-        .filter((c) => typeof c.prior_day_low === "number")
-        .map((c) => ({ time: toUnixTime(c.datetime), value: c.prior_day_low as number }));
+    if (showPriorDay && candles.length > 0) {
+      // Show exactly one dotted segment for the single most recent complete
+      // prior trading day's regular-hours (9:30-16:00) high and low, drawn
+      // only across that day's own candles -- not stepped across every
+      // session in the fetched history, and not a flat line spanning the
+      // whole chart.
+      const today = splitDateTime(candles[candles.length - 1].datetime).date;
 
-      if (pdhPoints.length > 0) {
-        const series = chart.addSeries(LineSeries, {
-          color: "#26C6DA",
-          lineWidth: 1,
-          lineStyle: LineStyle.Dashed,
-          lineType: LineType.WithSteps,
-          title: "PDH",
-        });
-        series.setData(pdhPoints);
-        extraSeriesRef.current.push({ series, kind: "pdh" });
+      let prevDate: string | null = null;
+      for (let i = candles.length - 1; i >= 0; i--) {
+        const { date, time } = splitDateTime(candles[i].datetime);
+        if (date < today && time >= RTH_OPEN && time <= RTH_CLOSE) {
+          prevDate = date;
+          break;
+        }
       }
 
-      if (pdlPoints.length > 0) {
-        const series = chart.addSeries(LineSeries, {
-          color: "#EF9A9A",
-          lineWidth: 1,
-          lineStyle: LineStyle.Dashed,
-          lineType: LineType.WithSteps,
-          title: "PDL",
+      if (prevDate) {
+        const rthCandles = candles.filter((c) => {
+          const { date, time } = splitDateTime(c.datetime);
+          return date === prevDate && time >= RTH_OPEN && time <= RTH_CLOSE;
         });
-        series.setData(pdlPoints);
-        extraSeriesRef.current.push({ series, kind: "pdl" });
+
+        if (rthCandles.length > 0) {
+          const dayHigh = Math.max(...rthCandles.map((c) => c.high));
+          const dayLow = Math.min(...rthCandles.map((c) => c.low));
+          const openTime = toUnixTime(rthCandles[0].datetime);
+          const closeTime = toUnixTime(rthCandles[rthCandles.length - 1].datetime);
+
+          const pdhSeries = chart.addSeries(LineSeries, {
+            color: "#26C6DA",
+            lineWidth: 2,
+            lineStyle: LineStyle.Dotted,
+            lastValueVisible: false,
+            priceLineVisible: false,
+            title: "PDH",
+          });
+          pdhSeries.setData([
+            { time: openTime, value: dayHigh },
+            { time: closeTime, value: dayHigh },
+          ]);
+          extraSeriesRef.current.push({ series: pdhSeries, kind: "pdh" });
+
+          const pdlSeries = chart.addSeries(LineSeries, {
+            color: "#EF9A9A",
+            lineWidth: 2,
+            lineStyle: LineStyle.Dotted,
+            lastValueVisible: false,
+            priceLineVisible: false,
+            title: "PDL",
+          });
+          pdlSeries.setData([
+            { time: openTime, value: dayLow },
+            { time: closeTime, value: dayLow },
+          ]);
+          extraSeriesRef.current.push({ series: pdlSeries, kind: "pdl" });
+        }
       }
     }
 
