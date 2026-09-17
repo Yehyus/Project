@@ -15,11 +15,13 @@ import {
   type Time,
   type UTCTimestamp,
 } from "lightweight-charts";
+import type { Timeframe } from "@/lib/api";
 import type { Candle, SweepSetup } from "@/lib/types";
 import { emaColorFor, type ChartColors } from "@/lib/colors";
 
 interface CandleChartProps {
   candles: Candle[];
+  timeframe: Timeframe;
   emaPeriods: number[];
   showVwap: boolean;
   showPriorDay: boolean;
@@ -60,6 +62,7 @@ const RTH_CLOSE = "16:00:00";
 
 export default function CandleChart({
   candles,
+  timeframe,
   emaPeriods,
   showVwap,
   showPriorDay,
@@ -132,6 +135,15 @@ export default function CandleChart({
     const candleSeries = candleSeriesRef.current;
     if (!chart || !candleSeries || candles.length === 0) return;
 
+    // Extra series (EMA/VWAP/PDH/PDL) must be torn down before the primary
+    // candle series gets new data -- switching timeframe (e.g. 5m to daily)
+    // replaces candles with a completely different time granularity, and
+    // calling setData() on the candle series while a stale extra series
+    // from the old granularity is still attached crashes lightweight-charts
+    // internally (an "ensureNotNull" exception) and leaves the chart blank.
+    extraSeriesRef.current.forEach(({ series }) => chart.removeSeries(series));
+    extraSeriesRef.current = [];
+
     candleSeries.setData(
       candles.map((c) => ({
         time: toUnixTime(c.datetime),
@@ -141,9 +153,6 @@ export default function CandleChart({
         close: c.close,
       }))
     );
-
-    extraSeriesRef.current.forEach(({ series }) => chart.removeSeries(series));
-    extraSeriesRef.current = [];
 
     emaPeriods.forEach((period, index) => {
       const key = `ema_${period}`;
@@ -176,7 +185,11 @@ export default function CandleChart({
       }
     }
 
-    if (showPriorDay && candles.length > 0) {
+    if (showPriorDay && timeframe !== "1d" && candles.length > 0) {
+      // Meaningless on the daily timeframe -- each daily candle already IS
+      // a full day, so there's no intraday regular-hours window to find a
+      // prior day's high/low against.
+      //
       // Show one dotted line each for the single most recent complete prior
       // trading day's regular-hours (9:30-16:00) high and low, starting at
       // that day's own market open and extending through the latest
@@ -239,7 +252,7 @@ export default function CandleChart({
     }
 
     chart.timeScale().fitContent();
-  }, [candles, emaPeriods, showVwap, showPriorDay]);
+  }, [candles, timeframe, emaPeriods, showVwap, showPriorDay]);
 
   useEffect(() => {
     const markersApi = seriesMarkersRef.current;

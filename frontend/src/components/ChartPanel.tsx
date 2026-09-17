@@ -83,6 +83,7 @@ export default function ChartPanel({
       {sweepsError && <p className={styles.chartError}>Failed to load sweeps: {sweepsError}</p>}
       <CandleChart
         candles={candles}
+        timeframe={timeframe}
         emaPeriods={emaPeriods}
         showVwap={showVwap}
         showPriorDay={showPriorDay}
