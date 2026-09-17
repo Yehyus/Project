@@ -38,7 +38,7 @@ export default function ChartPanel({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setError(null);
 
-    fetchCandles({ symbol, timeframe, emaPeriods, vwap: showVwap, priorDayLevels: showPriorDay })
+    fetchCandles({ symbol, timeframe, emaPeriods, vwap: showVwap })
       .then((data) => {
         if (!cancelled) setCandles(data.candles);
       })
@@ -49,7 +49,7 @@ export default function ChartPanel({
     return () => {
       cancelled = true;
     };
-  }, [symbol, timeframe, emaPeriods, showVwap, showPriorDay]);
+  }, [symbol, timeframe, emaPeriods, showVwap]);
 
   // Sweep/reclaim detection runs on 5-min candles server-side, so markers
   // only make sense to overlay when the panel itself is on the 5m timeframe.

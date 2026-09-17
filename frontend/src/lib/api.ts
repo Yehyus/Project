@@ -9,7 +9,6 @@ export interface FetchCandlesParams {
   timeframe?: Timeframe;
   emaPeriods?: number[];
   vwap?: boolean;
-  priorDayLevels?: boolean;
 }
 
 export async function fetchCandles({
@@ -17,14 +16,12 @@ export async function fetchCandles({
   timeframe = "1d",
   emaPeriods = [],
   vwap = false,
-  priorDayLevels = false,
 }: FetchCandlesParams): Promise<CandlesResponse> {
   const params = new URLSearchParams({ symbol, timeframe });
   if (emaPeriods.length > 0) {
     params.set("ema", emaPeriods.join(","));
   }
   if (vwap) params.set("vwap", "true");
-  if (priorDayLevels) params.set("prior_day_levels", "true");
 
   const res = await fetch(`${API_BASE}/api/candles?${params.toString()}`);
   if (!res.ok) {
