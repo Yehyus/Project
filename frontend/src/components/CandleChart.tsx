@@ -11,6 +11,7 @@ import {
   type IChartApi,
   type ISeriesApi,
   type ISeriesMarkersPluginApi,
+  type LineData,
   type SeriesMarker,
   type Time,
   type UTCTimestamp,
@@ -59,6 +60,52 @@ function splitDateTime(datetime: string): { date: string; time: string } {
 
 const RTH_OPEN = "09:30:00";
 const RTH_CLOSE = "16:00:00";
+
+// For every trading day D, one segment at the previous trading day's
+// regular-hours (9:30-16:00) high and low, running from that previous day's
+// open through D's close (or through the latest candle, if D is the current
+// day still in progress or hasn't reached its open yet).
+//
+// Consecutive days' segments overlap in time (D's starts during D-1's
+// session) and a line series holds one value per timestamp, so each segment
+// gets its own series. Each has a point per candle across its whole span --
+// matching the candle series' density also avoids a lightweight-charts
+// fitContent() failure that sparse two-point lines cause.
+function buildPriorDayLines(candles: Candle[]): { high: LineData<Time>[]; low: LineData<Time>[] }[] {
+  const parts = candles.map((c) => splitDateTime(c.datetime));
+
+  const rth = new Map<string, { high: number; low: number; first: number; last: number }>();
+  parts.forEach(({ date, time }, i) => {
+    if (time < RTH_OPEN || time > RTH_CLOSE) return;
+    const c = candles[i];
+    const day = rth.get(date);
+    if (!day) {
+      rth.set(date, { high: c.high, low: c.low, first: i, last: i });
+    } else {
+      day.high = Math.max(day.high, c.high);
+      day.low = Math.min(day.low, c.low);
+      day.last = i;
+    }
+  });
+
+  const dates = [...rth.keys()].sort();
+  const lastDate = parts[parts.length - 1].date;
+  if (dates.length > 0 && dates[dates.length - 1] < lastDate) dates.push(lastDate);
+
+  const lines: { high: LineData<Time>[]; low: LineData<Time>[] }[] = [];
+  for (let k = 1; k < dates.length; k++) {
+    const prev = rth.get(dates[k - 1]);
+    if (!prev) continue;
+    const end = rth.get(dates[k])?.last ?? candles.length - 1;
+    const times = candles.slice(prev.first, end + 1).map((c) => toUnixTime(c.datetime));
+    lines.push({
+      high: times.map((time) => ({ time, value: prev.high })),
+      low: times.map((time) => ({ time, value: prev.low })),
+    });
+  }
+
+  return lines;
+}
 
 export default function CandleChart({
   candles,
@@ -185,70 +232,34 @@ export default function CandleChart({
       }
     }
 
+    // Meaningless on the daily timeframe -- each daily candle already IS a
+    // full day, so there's no intraday regular-hours window to find a prior
+    // day's high/low against.
     if (showPriorDay && timeframe !== "1d" && candles.length > 0) {
-      // Meaningless on the daily timeframe -- each daily candle already IS
-      // a full day, so there's no intraday regular-hours window to find a
-      // prior day's high/low against.
-      //
-      // Show one dotted line each for the single most recent complete prior
-      // trading day's regular-hours (9:30-16:00) high and low, starting at
-      // that day's own market open and extending through the latest
-      // available candle so it works as a live reference against today's
-      // price action (not stopping at yesterday's close).
-      //
-      // The line is built with one point per candle across that whole span
-      // (not just 2 endpoints) -- a 2-point line, with a large time gap
-      // between its only two points, throws off lightweight-charts'
-      // fitContent() bar-spacing calculation and collapses the visible
-      // range to a couple of bars. Matching the candle series' own point
-      // density avoids that entirely.
-      const today = splitDateTime(candles[candles.length - 1].datetime).date;
+      const lines = buildPriorDayLines(candles);
 
-      let prevDate: string | null = null;
-      for (let i = candles.length - 1; i >= 0; i--) {
-        const { date, time } = splitDateTime(candles[i].datetime);
-        if (date < today && time >= RTH_OPEN && time <= RTH_CLOSE) {
-          prevDate = date;
-          break;
-        }
-      }
+      lines.forEach((line, n) => {
+        // Only the most recent day's pair gets a label, so the chart doesn't
+        // show a stack of duplicate PDH/PDL tags.
+        const isLatest = n === lines.length - 1;
+        const specs = [
+          { kind: "pdh" as const, color: "#26C6DA", title: "PDH", data: line.high },
+          { kind: "pdl" as const, color: "#EF9A9A", title: "PDL", data: line.low },
+        ];
 
-      if (prevDate) {
-        const rthCandles = candles.filter((c) => {
-          const { date, time } = splitDateTime(c.datetime);
-          return date === prevDate && time >= RTH_OPEN && time <= RTH_CLOSE;
+        specs.forEach(({ kind, color, title, data }) => {
+          const series = chart.addSeries(LineSeries, {
+            color,
+            lineWidth: 2,
+            lineStyle: LineStyle.Dotted,
+            lastValueVisible: false,
+            priceLineVisible: false,
+            title: isLatest ? title : "",
+          });
+          series.setData(data);
+          extraSeriesRef.current.push({ series, kind });
         });
-
-        const startIndex = candles.findIndex((c) => c.datetime === rthCandles[0]?.datetime);
-
-        if (rthCandles.length > 0 && startIndex !== -1) {
-          const dayHigh = Math.max(...rthCandles.map((c) => c.high));
-          const dayLow = Math.min(...rthCandles.map((c) => c.low));
-          const spanCandles = candles.slice(startIndex);
-
-          const pdhSeries = chart.addSeries(LineSeries, {
-            color: "#26C6DA",
-            lineWidth: 2,
-            lineStyle: LineStyle.Dotted,
-            lastValueVisible: false,
-            priceLineVisible: false,
-            title: "PDH",
-          });
-          pdhSeries.setData(spanCandles.map((c) => ({ time: toUnixTime(c.datetime), value: dayHigh })));
-          extraSeriesRef.current.push({ series: pdhSeries, kind: "pdh" });
-
-          const pdlSeries = chart.addSeries(LineSeries, {
-            color: "#EF9A9A",
-            lineWidth: 2,
-            lineStyle: LineStyle.Dotted,
-            lastValueVisible: false,
-            priceLineVisible: false,
-            title: "PDL",
-          });
-          pdlSeries.setData(spanCandles.map((c) => ({ time: toUnixTime(c.datetime), value: dayLow })));
-          extraSeriesRef.current.push({ series: pdlSeries, kind: "pdl" });
-        }
-      }
+      });
     }
 
     chart.timeScale().fitContent();
