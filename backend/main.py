@@ -114,10 +114,10 @@ def get_sweeps(
 ):
     """Detect prior-day-high/low sweep/reclaim/entry setups on 5-minute candles.
 
-    Each session's prior-day high and low (computed from the full prior
-    trading session, including its overnight leg) is checked independently
-    as a sweep level, but the sweep/reclaim/entry scan itself is restricted
-    to the 9:30-12:00 window of the current session.
+    The levels are the previous trading day's regular-hours (9:30-16:00)
+    high and low -- the same ones the chart's prior-day line draws -- and
+    each is checked independently. The sweep/reclaim/entry scan itself is
+    restricted to the 9:30-12:00 window of the current session.
     """
     if not _SYMBOL_RE.match(symbol):
         raise HTTPException(status_code=400, detail=f"Invalid symbol: {symbol!r}")
@@ -132,7 +132,7 @@ def get_sweeps(
     if df.empty:
         return {"setups": []}
 
-    levels = indicators.prior_day_high_low(df)
+    rth_levels = indicators.rth_high_low_by_date(df)
     session_key = indicators.session_date(df.index)
 
     setups = []
@@ -140,9 +140,11 @@ def get_sweeps(
         if start is not None and day.date() < start:
             continue
 
-        day_levels = levels.loc[day_df.index]
-        prior_high = day_levels["prior_day_high"].iloc[0]
-        prior_low = day_levels["prior_day_low"].iloc[0]
+        earlier = rth_levels.loc[rth_levels.index < day.date()]
+        if earlier.empty:
+            continue
+        prior_high = earlier["high"].iloc[-1]
+        prior_low = earlier["low"].iloc[-1]
 
         bar_times = day_df.index.time
         scan_df = day_df.loc[(bar_times >= SCAN_WINDOW_START) & (bar_times < SCAN_WINDOW_END)]

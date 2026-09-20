@@ -49,14 +49,17 @@ def find_sweep_reclaim(
     """Scan `df` (intraday candles, one session, sorted by time ascending)
     for a sweep/reclaim/entry sequence against `level`.
 
-    side="low": looks for a candle that trades at least `penetration_threshold`
-    below `level` (a stop-run under a support level), then a later candle that
-    closes back above that sweep candle's high, then a later candle that
-    breaks above the reclaim candle's high.
+    side="low": looks for a candle that opens at or above `level` and wicks at
+    least `penetration_threshold` below it (a stop-run under a support level),
+    then a later candle that closes back above that sweep candle's high, then
+    a later candle that breaks above the reclaim candle's high.
+
+    The open must be on the inside of the level: a candle that opens already
+    beyond it (a gap through the level) never crossed it, so it isn't a sweep.
 
     side="high" mirrors this above `level`.
 
-    Returns None if no candle penetrates the level by at least
+    Returns None if no candle sweeps the level by at least
     `penetration_threshold`, or if a sweep occurs but is never reclaimed.
     """
     if df.empty or penetration_threshold < 0:
@@ -65,9 +68,9 @@ def find_sweep_reclaim(
     is_low_sweep = side == "low"
 
     if is_low_sweep:
-        penetrates = df["low"] <= level - penetration_threshold
+        penetrates = (df["open"] >= level) & (df["low"] <= level - penetration_threshold)
     else:
-        penetrates = df["high"] >= level + penetration_threshold
+        penetrates = (df["open"] <= level) & (df["high"] >= level + penetration_threshold)
 
     sweep_times = df.index[penetrates]
     if len(sweep_times) == 0:

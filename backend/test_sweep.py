@@ -30,9 +30,9 @@ def check(label: str, condition: bool) -> None:
 df = make_df(
     [
         ("2024-01-02 09:30", 92, 93.0, 91.0, 92.0),
-        ("2024-01-02 09:35", 89.3, 89.5, 89.0, 89.2),  # sweep candle (below level=90 by >=0.5)
-        ("2024-01-02 09:40", 89.3, 90.2, 89.1, 90.0),  # reclaim candle (closes > 89.5)
-        ("2024-01-02 09:45", 90.0, 90.5, 89.8, 90.3),  # entry trigger (high > 90.2)
+        ("2024-01-02 09:35", 90.2, 90.4, 89.0, 89.2),  # sweep candle (opens above level=90, wicks >=0.5 below)
+        ("2024-01-02 09:40", 89.3, 90.8, 89.1, 90.6),  # reclaim candle (closes > 90.4)
+        ("2024-01-02 09:45", 90.6, 91.0, 90.4, 90.9),  # entry trigger (high > 90.8)
     ]
 )
 setup = find_sweep_reclaim(df, level=90.0, side="low", penetration_threshold=0.5)
@@ -40,15 +40,15 @@ check("low sweep detected", setup is not None)
 check("sweep_time is candle 2", str(setup.sweep_time) == "2024-01-02 09:35:00")
 check("reclaim_time is candle 3", str(setup.reclaim_time) == "2024-01-02 09:40:00")
 check("entry_time is candle 4", str(setup.entry_time) == "2024-01-02 09:45:00")
-check("entry_price equals reclaim_high", setup.entry_price == 90.2)
+check("entry_price equals reclaim_high", setup.entry_price == 90.8)
 
 # --- high sweep: mirrored ---
 df_high = make_df(
     [
         ("2024-01-02 09:30", 108, 109.0, 107.0, 108.0),
-        ("2024-01-02 09:35", 110.5, 110.8, 110.3, 110.6),  # sweep above level=110 by >=0.5
-        ("2024-01-02 09:40", 110.4, 110.6, 109.5, 109.8),  # reclaim: closes < sweep_low (110.3)
-        ("2024-01-02 09:45", 109.9, 109.6, 109.0, 109.3),  # entry: low < reclaim_low (109.5)
+        ("2024-01-02 09:35", 109.8, 110.8, 109.7, 110.6),  # opens below level=110, wicks >=0.5 above
+        ("2024-01-02 09:40", 110.4, 110.6, 109.2, 109.4),  # reclaim: closes < sweep_low (109.7)
+        ("2024-01-02 09:45", 109.4, 109.5, 109.0, 109.1),  # entry: low < reclaim_low (109.2)
     ]
 )
 setup_high = find_sweep_reclaim(df_high, level=110.0, side="high", penetration_threshold=0.5)
@@ -59,8 +59,8 @@ check("high sweep entry triggered", setup_high.entry_time is not None)
 df_no_reclaim = make_df(
     [
         ("2024-01-02 09:30", 92, 93.0, 91.0, 92.0),
-        ("2024-01-02 09:35", 89.3, 89.5, 89.0, 89.2),  # sweep candle
-        ("2024-01-02 09:40", 89.0, 89.4, 88.5, 89.0),  # never closes back above 89.5
+        ("2024-01-02 09:35", 90.2, 90.4, 89.0, 89.2),  # sweep candle
+        ("2024-01-02 09:40", 89.0, 89.4, 88.5, 89.0),  # never closes back above 90.4
     ]
 )
 no_setup = find_sweep_reclaim(df_no_reclaim, level=90.0, side="low", penetration_threshold=0.5)
@@ -79,13 +79,23 @@ check("no penetration -> None", find_sweep_reclaim(df_no_sweep, level=90.0, side
 df_no_entry = make_df(
     [
         ("2024-01-02 09:30", 92, 93.0, 91.0, 92.0),
-        ("2024-01-02 09:35", 89.3, 89.5, 89.0, 89.2),  # sweep
-        ("2024-01-02 09:40", 89.3, 90.2, 89.1, 90.0),  # reclaim
-        ("2024-01-02 09:45", 90.0, 90.1, 89.8, 89.9),  # doesn't break 90.2
+        ("2024-01-02 09:35", 90.2, 90.4, 89.0, 89.2),  # sweep
+        ("2024-01-02 09:40", 89.3, 90.8, 89.1, 90.6),  # reclaim
+        ("2024-01-02 09:45", 90.6, 90.7, 90.3, 90.4),  # doesn't break 90.8
     ]
 )
 setup_no_entry = find_sweep_reclaim(df_no_entry, level=90.0, side="low", penetration_threshold=0.5)
 check("reclaim without entry is still a valid setup", setup_no_entry is not None)
 check("entry_time is None when no trigger yet", setup_no_entry.entry_time is None)
+
+# --- gap through the level (opens already beyond it) is not a sweep ---
+df_gap = make_df(
+    [
+        ("2024-01-02 09:30", 89.5, 89.8, 89.0, 89.6),  # opens below level=90: never crossed it
+        ("2024-01-02 09:35", 89.6, 90.9, 89.5, 90.8),  # would "reclaim" if the gap candle counted
+        ("2024-01-02 09:40", 90.8, 91.2, 90.6, 91.0),
+    ]
+)
+check("gap through level -> None", find_sweep_reclaim(df_gap, level=90.0, side="low", penetration_threshold=0.5) is None)
 
 print("\nAll sweep.py checks passed.")

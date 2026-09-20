@@ -7,6 +7,8 @@ a pandas Series or DataFrame aligned to that same index.
 
 from __future__ import annotations
 
+from datetime import time
+
 import pandas as pd
 
 # CME Globex futures trade nearly continuously and roll from one trading
@@ -59,6 +61,18 @@ def session_vwap(df: pd.DataFrame) -> pd.Series:
     cum_volume = df["volume"].groupby(session_key).cumsum()
 
     return cum_pv / cum_volume
+
+
+def rth_high_low_by_date(df: pd.DataFrame) -> pd.DataFrame:
+    """Regular-trading-hours (9:30-16:00, inclusive) high/low per calendar date.
+
+    This is the same window the chart's prior-day line uses, so levels
+    derived from it match what's drawn. Returns a DataFrame indexed by
+    date with columns high / low.
+    """
+    times = df.index.time
+    rth = df[(times >= time(9, 30)) & (times <= time(16, 0))]
+    return rth.groupby(rth.index.date).agg(high=("high", "max"), low=("low", "min"))
 
 
 def prior_day_high_low(df: pd.DataFrame) -> pd.DataFrame:
