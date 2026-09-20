@@ -88,14 +88,25 @@ setup_no_entry = find_sweep_reclaim(df_no_entry, level=90.0, side="low", penetra
 check("reclaim without entry is still a valid setup", setup_no_entry is not None)
 check("entry_time is None when no trigger yet", setup_no_entry.entry_time is None)
 
-# --- gap through the level (opens already beyond it) is not a sweep ---
-df_gap = make_df(
+# --- candle entirely beyond the level (never touched it) is not a sweep ---
+df_beyond = make_df(
     [
-        ("2024-01-02 09:30", 89.5, 89.8, 89.0, 89.6),  # opens below level=90: never crossed it
-        ("2024-01-02 09:35", 89.6, 90.9, 89.5, 90.8),  # would "reclaim" if the gap candle counted
-        ("2024-01-02 09:40", 90.8, 91.2, 90.6, 91.0),
+        ("2024-01-02 09:30", 89.5, 89.8, 89.0, 89.6),  # high 89.8 < level=90: never reached it
+        ("2024-01-02 09:35", 89.6, 89.9, 89.4, 89.8),
+        ("2024-01-02 09:40", 89.8, 91.0, 89.7, 90.9),
     ]
 )
-check("gap through level -> None", find_sweep_reclaim(df_gap, level=90.0, side="low", penetration_threshold=0.5) is None)
+check("candle entirely beyond level -> None", find_sweep_reclaim(df_beyond, level=90.0, side="low", penetration_threshold=0.5) is None)
+
+# --- gap-open candle that still wicks through the level counts ---
+df_gap_wick = make_df(
+    [
+        ("2024-01-02 09:30", 89.8, 90.3, 89.0, 89.9),  # opens below level=90 but its high reaches through it
+        ("2024-01-02 09:35", 89.9, 90.7, 89.8, 90.6),  # closes > 90.3: reclaim
+        ("2024-01-02 09:40", 90.6, 91.0, 90.5, 90.9),  # high > 90.7: entry
+    ]
+)
+setup_gap = find_sweep_reclaim(df_gap_wick, level=90.0, side="low", penetration_threshold=0.5)
+check("gap-open candle wicking through level is a sweep", setup_gap is not None and str(setup_gap.sweep_time) == "2024-01-02 09:30:00")
 
 print("\nAll sweep.py checks passed.")
